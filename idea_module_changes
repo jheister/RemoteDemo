@@ -1,0 +1,10 @@
+Build files:
+
+.idea_modules/RemoteDemo.iml
+
+ <module type="PLUGIN_MODULE" version="4">                                                                           
+   <component name="DevKit.ModuleBuildProperties" url="file://$MODULE_DIR$/META-INF/plugin.xml" />
+
+.idea_modules/META-INF
+
+<orderEntry type="jdk" jdkName="IDEA IC-123.72" jdkType="IDEA JDK" />
