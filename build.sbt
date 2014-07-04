@@ -22,7 +22,8 @@ libraryDependencies ++= {
     "org.eclipse.jetty" % "jetty-plus"          % "8.1.7.v20120910",
     "org.eclipse.jetty.orbit" % "javax.servlet" % "3.0.0.v201112011016",
     "ch.qos.logback"    % "logback-classic"     % "1.0.6",
-    "org.specs2"        %% "specs2"             % "2.3.12"           % "test"
+    "org.scalatest" %% "scalatest" % "2.1.3"
   )
 }
 
+FixPluginIdeaFile.settings
