@@ -9,7 +9,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.{Project, ProjectManagerListener, ProjectManager}
 import com.intellij.openapi.fileEditor.{FileEditorManager, FileEditorManagerEvent, FileEditorManagerListener, FileEditorManagerAdapter}
 import com.intellij.openapi.vfs.VirtualFile
-import code.comet.EventBus
+import code.comet.{EditorFile, EditorSectionEventHandler}
 
 class WebComponent extends ApplicationComponent {
   def getComponentName: String = "Web Component"
@@ -56,20 +56,20 @@ class WebComponent extends ApplicationComponent {
 object FileEditorEvents extends FileEditorManagerListener {
   def fileOpened(p1: FileEditorManager, p2: VirtualFile) {
     println("Opened")
-    EventBus ! FileOpened(p2)
+    EditorSectionEventHandler ! FileOpened(EditorFile(p2))
   }
 
   def fileClosed(p1: FileEditorManager, p2: VirtualFile) {
-    EventBus ! FileClosed(p2)
+    EditorSectionEventHandler ! FileClosed(EditorFile(p2))
   }
 
   def selectionChanged(p1: FileEditorManagerEvent) {
-    EventBus ! SelectionChanged(Option(p1.getNewFile))
+    EditorSectionEventHandler ! SelectionChanged(Option(p1.getNewFile).map(EditorFile(_)))
   }
 }
 
-case class FileOpened(file: VirtualFile)
+case class FileOpened(file: EditorFile)
 
-case class FileClosed(file: VirtualFile)
+case class FileClosed(file: EditorFile)
 
-case class SelectionChanged(newFile: Option[VirtualFile])
+case class SelectionChanged(newFile: Option[EditorFile])

@@ -1,34 +1,26 @@
 package code.comet
 
+import com.intellij.openapi.vfs.VirtualFile
 import net.liftweb.http.{CometListener, RenderOut, CometActor}
 import net.liftweb.common.SimpleActor
 import plugin.{SelectionChanged, FileClosed, FileOpened}
 
 class Stuff extends CometActor with CometListener {
-  protected def registerWith = EventBus
+  protected def registerWith = EditorSectionEventHandler
 
-  var openFiles: Map[String, String] = Map()
-  var selected: Option[String]= None
-
+  var section: EditorSection = EditorSection()
 
   override protected def dontCacheRendering: Boolean = true
 
   override def lowPriority = {
-    case FileOpened(file) => openFiles = openFiles.updated(file.getPath, ""); reRender()
-    case FileClosed(file) => openFiles = openFiles - file.getPath; reRender()
-    case SelectionChanged(maybeFile) => selected = maybeFile.map(_.getPath); reRender()
-    case e: Any => println("Got a random event " + e)
+    case editorSection: EditorSection => section = editorSection; reRender()
   }
 
   def render = {
-    println("rendering " + openFiles)
-    ".files *" #> openFiles.keys.map(file => {
-      if (Some(file) == selected) {
-        ".filename *" #> file &
-        ".filename [class]" #> "selected"
-      } else {
-        ".filename *" #> file
-      }
-    })
+    ".editor-tab *" #> section.openFiles.reverse.map(file => {
+      ".filename *" #> file.name &
+        ".filename [class]" #> section.selectedFile.filter(_ == file).map(_ => "selected").getOrElse("")
+    }) &
+    ".file-content *" #> section.selectedFile.map(_.content).getOrElse("")
   }
 }
