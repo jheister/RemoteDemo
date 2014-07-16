@@ -7,9 +7,19 @@ import org.eclipse.jetty.webapp.WebAppContext
 import org.eclipse.jetty.server.handler.ContextHandler
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.{Project, ProjectManagerListener, ProjectManager}
-import com.intellij.openapi.fileEditor.{FileEditorManager, FileEditorManagerEvent, FileEditorManagerListener, FileEditorManagerAdapter}
+import com.intellij.openapi.fileEditor._
 import com.intellij.openapi.vfs.VirtualFile
 import code.comet.EventBus
+import scala.collection.JavaConversions._
+import com.intellij.openapi.fileTypes.FileTypeEditorHighlighterProviders
+import com.intellij.openapi.editor.colors.impl.DefaultColorsScheme
+import com.intellij.openapi.editor.colors.ex.DefaultColorSchemesManager
+import com.intellij.openapi.editor.ex.util.LexerEditorHighlighter
+import com.intellij.openapi.editor.highlighter.HighlighterClient
+import com.intellij.openapi.editor.Document
+import plugin.SelectionChanged
+import plugin.FileClosed
+import plugin.FileOpened
 
 class WebComponent extends ApplicationComponent {
   def getComponentName: String = "Web Component"
@@ -55,7 +65,34 @@ class WebComponent extends ApplicationComponent {
 
 object FileEditorEvents extends FileEditorManagerListener {
   def fileOpened(p1: FileEditorManager, p2: VirtualFile) {
+    val highlighterProviders = FileTypeEditorHighlighterProviders.INSTANCE.allForFileType(p2.getFileType)
     println("Opened")
+
+    val doc = FileDocumentManager.getInstance().getDocument(p2)
+
+    val highlighter = highlighterProviders.get(0).getEditorHighlighter(p1.getProject, p2.getFileType, p2, new DefaultColorsScheme(DefaultColorSchemesManager.getInstance()))
+
+    val lexEdHigh = highlighter.asInstanceOf[LexerEditorHighlighter]
+
+    highlighter.setEditor(new HighlighterClient {
+      def repaint(p1: Int, p2: Int) {}
+
+      def getDocument: Document = doc
+
+      def getProject: Project = p1.getProject
+    })
+
+    highlighter.setText(doc.getText)
+
+    val iterator = highlighter.createIterator(0)
+
+    println("I am here " + iterator.atEnd() + " and am " + lexEdHigh.isValid)
+
+    while (!iterator.atEnd()) {
+      println("token " + iterator.getTokenType)
+      iterator.advance()
+    }
+
     EventBus ! FileOpened(p2)
   }
 
