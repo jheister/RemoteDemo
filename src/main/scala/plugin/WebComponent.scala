@@ -10,10 +10,18 @@ import org.eclipse.jetty.webapp.WebAppContext
 import org.eclipse.jetty.server.handler.ContextHandler
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.{Project, ProjectManagerListener, ProjectManager}
-import com.intellij.openapi.fileEditor.{FileEditorManager, FileEditorManagerEvent, FileEditorManagerListener, FileEditorManagerAdapter}
+import com.intellij.openapi.fileEditor._
 import com.intellij.openapi.vfs.VirtualFile
 import code.comet.{EditorFile, EditorSectionEventHandler}
 import scala.collection.JavaConversions._
+import com.intellij.openapi.fileTypes.FileTypeEditorHighlighterProviders
+import com.intellij.openapi.editor.colors.impl.DefaultColorsScheme
+import com.intellij.openapi.editor.colors.ex.DefaultColorSchemesManager
+import com.intellij.openapi.editor.ex.util.LexerEditorHighlighter
+import com.intellij.openapi.editor.highlighter.HighlighterClient
+import com.intellij.openapi.editor.Document
+
+import com.intellij.openapi.util.TextRange
 
 class WebComponent extends ApplicationComponent {
   def getComponentName: String = "Web Component"
@@ -66,17 +74,64 @@ class WebComponent extends ApplicationComponent {
 
 object FileEditorEvents extends FileEditorManagerListener {
   def fileOpened(p1: FileEditorManager, p2: VirtualFile) {
-    EditorSectionEventHandler ! FileOpened(EditorFile(p2))
+    EditorSectionEventHandler ! FileOpened(EditorFile(p2, Nil))
+
+    val highlighterProviders = FileTypeEditorHighlighterProviders.INSTANCE.allForFileType(p2.getFileType)
+    println("Opened")
+
+    val doc = FileDocumentManager.getInstance().getDocument(p2)
+
+    val highlighter = highlighterProviders.get(0).getEditorHighlighter(p1.getProject, p2.getFileType, p2, new DefaultColorsScheme(DefaultColorSchemesManager.getInstance()))
+
+    val lexEdHigh = highlighter.asInstanceOf[LexerEditorHighlighter]
+
+    highlighter.setEditor(new HighlighterClient {
+      def repaint(x: Int, y: Int) {
+        val iterator = highlighter.createIterator(0)
+
+        val stuff = new Iterator[(String, String)] {
+          def hasNext: Boolean = !iterator.atEnd()
+
+          def next(): (String, String) = {
+            val data = (iterator.getTokenType.toString, doc.getText(new TextRange(iterator.getStart, iterator.getEnd)))
+            iterator.advance()
+
+            data
+          }
+        }
+
+        EditorSectionEventHandler ! ContentChanged(EditorFile(p2, stuff.toList))
+      }
+
+      def getDocument: Document = doc
+
+      def getProject: Project = p1.getProject
+    })
+
+    highlighter.setText(doc.getText)
+
+    val iterator = highlighter.createIterator(0)
+
+    println("I am here " + iterator.atEnd() + " and am " + lexEdHigh.isValid)
+
+    while (!iterator.atEnd()) {
+      println("token " + iterator.getTokenType)
+      iterator.advance()
+    }
+
+    doc.addDocumentListener(highlighter)
   }
 
   def fileClosed(p1: FileEditorManager, p2: VirtualFile) {
-    EditorSectionEventHandler ! FileClosed(EditorFile(p2))
+    EditorSectionEventHandler ! FileClosed(EditorFile(p2, Nil))
   }
 
   def selectionChanged(p1: FileEditorManagerEvent) {
-    EditorSectionEventHandler ! SelectionChanged(Option(p1.getNewFile).map(EditorFile(_)))
+    EditorSectionEventHandler ! SelectionChanged(Option(p1.getNewFile).map(EditorFile(_, Nil)))
   }
 }
+
+case class ContentChanged(file: EditorFile)
 
 case class FileOpened(file: EditorFile)
 
