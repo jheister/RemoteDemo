@@ -76,16 +76,21 @@ object FileEditorEvents extends FileEditorManagerListener {
     val lexEdHigh = highlighter.asInstanceOf[LexerEditorHighlighter]
 
     highlighter.setEditor(new HighlighterClient {
-      def repaint(p1: Int, p2: Int) {
+      def repaint(x: Int, y: Int) {
         val iterator = highlighter.createIterator(0)
 
-        while (!iterator.atEnd()) {
-          println(iterator.getTokenType + " at " + iterator.getStart + " to " + iterator.getEnd + " it is " + doc.getText(new TextRange(iterator.getStart, iterator.getEnd)))
+        val stuff = new Iterator[(String, String)] {
+          def hasNext: Boolean = !iterator.atEnd()
 
-          iterator.advance()
+          def next(): (String, String) = {
+            val data = (iterator.getTokenType.toString, doc.getText(new TextRange(iterator.getStart, iterator.getEnd)))
+            iterator.advance()
+
+            data
+          }
         }
 
-        println("I have been told to repaint")
+        EventBus ! ContentChanged(p2, stuff.toList)
       }
 
       def getDocument: Document = doc
@@ -108,6 +113,8 @@ object FileEditorEvents extends FileEditorManagerListener {
     EventBus ! SelectionChanged(Option(p1.getNewFile))
   }
 }
+
+case class ContentChanged(file: VirtualFile, content: List[(String, String)])
 
 case class FileOpened(file: VirtualFile)
 
