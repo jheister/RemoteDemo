@@ -1,6 +1,9 @@
 package plugin
 
 import com.intellij.openapi.components.ApplicationComponent
+import com.intellij.openapi.editor.Document
+import com.intellij.psi.{PsiFile, PsiDocumentManager}
+import com.intellij.psi.PsiDocumentManager.Listener
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.nio.SelectChannelConnector
 import org.eclipse.jetty.webapp.WebAppContext
@@ -10,6 +13,7 @@ import com.intellij.openapi.project.{Project, ProjectManagerListener, ProjectMan
 import com.intellij.openapi.fileEditor.{FileEditorManager, FileEditorManagerEvent, FileEditorManagerListener, FileEditorManagerAdapter}
 import com.intellij.openapi.vfs.VirtualFile
 import code.comet.{EditorFile, EditorSectionEventHandler}
+import scala.collection.JavaConversions._
 
 class WebComponent extends ApplicationComponent {
   def getComponentName: String = "Web Component"
@@ -41,6 +45,13 @@ class WebComponent extends ApplicationComponent {
         def projectClosed(p1: Project) {}
 
         def projectOpened(p1: Project) {
+          val psiDocumentManager = com.intellij.psi.PsiDocumentManager.getInstance(p1)
+
+          psiDocumentManager.addListener(new Listener {
+            override def documentCreated(p1: Document, p2: PsiFile): Unit = println("Doc created " + p1)
+
+            override def fileCreated(p1: PsiFile, p2: Document): Unit = println("File created " + p1)
+          })
           p1.getMessageBus.connect().subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, FileEditorEvents)
         }
       })
@@ -55,7 +66,6 @@ class WebComponent extends ApplicationComponent {
 
 object FileEditorEvents extends FileEditorManagerListener {
   def fileOpened(p1: FileEditorManager, p2: VirtualFile) {
-    println("Opened")
     EditorSectionEventHandler ! FileOpened(EditorFile(p2))
   }
 

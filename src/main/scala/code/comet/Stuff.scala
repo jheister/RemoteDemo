@@ -21,6 +21,6 @@ class Stuff extends CometActor with CometListener {
       ".filename *" #> file.name &
         ".filename [class]" #> section.selectedFile.filter(_ == file).map(_ => "selected").getOrElse("")
     }) &
-    ".file-content *" #> section.selectedFile.map(_.content).getOrElse("")
+    ".code-line *" #> section.selectedFile.map(_.content.split("\n")).getOrElse(Array())
   }
 }
