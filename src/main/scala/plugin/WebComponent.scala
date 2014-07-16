@@ -20,6 +20,7 @@ import com.intellij.openapi.editor.Document
 import plugin.SelectionChanged
 import plugin.FileClosed
 import plugin.FileOpened
+import com.intellij.openapi.util.TextRange
 
 class WebComponent extends ApplicationComponent {
   def getComponentName: String = "Web Component"
@@ -75,7 +76,17 @@ object FileEditorEvents extends FileEditorManagerListener {
     val lexEdHigh = highlighter.asInstanceOf[LexerEditorHighlighter]
 
     highlighter.setEditor(new HighlighterClient {
-      def repaint(p1: Int, p2: Int) {}
+      def repaint(p1: Int, p2: Int) {
+        val iterator = highlighter.createIterator(0)
+
+        while (!iterator.atEnd()) {
+          println(iterator.getTokenType + " at " + iterator.getStart + " to " + iterator.getEnd + " it is " + doc.getText(new TextRange(iterator.getStart, iterator.getEnd)))
+
+          iterator.advance()
+        }
+
+        println("I have been told to repaint")
+      }
 
       def getDocument: Document = doc
 
@@ -84,14 +95,7 @@ object FileEditorEvents extends FileEditorManagerListener {
 
     highlighter.setText(doc.getText)
 
-    val iterator = highlighter.createIterator(0)
-
-    println("I am here " + iterator.atEnd() + " and am " + lexEdHigh.isValid)
-
-    while (!iterator.atEnd()) {
-      println("token " + iterator.getTokenType)
-      iterator.advance()
-    }
+    doc.addDocumentListener(highlighter)
 
     EventBus ! FileOpened(p2)
   }
