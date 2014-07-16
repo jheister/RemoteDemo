@@ -19,14 +19,18 @@ object EditorSectionEventHandler extends LiftActor with ListenerManager {
 }
 
 case class EditorSection(openFiles: List[EditorFile] = Nil,
-                         selectedFile: Option[EditorFile] = None) {
+                         selectedFile: Option[String] = None) {
   def openFile(file: EditorFile) = copy(openFiles = file :: openFiles)
 
-  def closeFile(file: EditorFile) = copy(openFiles = openFiles.filterNot(file.is))
+  def closeFile(file: String) = copy(openFiles = openFiles.filterNot(_.name == file))
 
-  def changeSelection(maybeFile: Option[EditorFile]) = copy(selectedFile = maybeFile)
+  def changeSelection(maybeFile: Option[String]) = copy(selectedFile = maybeFile)
 
-  def update(newFile: EditorFile) = copy(openFiles.map(possiblyUpdate(newFile)), selectedFile.map(possiblyUpdate(newFile)))
+  def update(newFile: EditorFile) = copy(openFiles.map(possiblyUpdate(newFile)))
+
+  def selected: Option[EditorFile] = selectedFile.flatMap(name => openFiles.find(_.name == name))
+
+  def isSelected(file: EditorFile) = selected.map(_ == file).getOrElse(false)
 
   private def possiblyUpdate(newFile: EditorFile)(file: EditorFile) =
     if (file.is(newFile)) {
