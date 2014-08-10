@@ -1,5 +1,6 @@
 package code.comet
 
+import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.vfs.VirtualFile
 import net.liftweb.http.ListenerManager
 import net.liftweb.actor.LiftActor
@@ -41,11 +42,11 @@ case class EditorSection(openFiles: List[EditorFile] = Nil,
 
 }
 
-case class EditorFile(name: String, content: List[(String, String)]) {
+case class EditorFile(name: String, content: List[(String, String, TextAttributes)]) {
   def is(file: EditorFile) = name == file.name
 }
 
 object EditorFile {
-  def apply(file: VirtualFile, content: List[(String, String)]): EditorFile =
+  def apply(file: VirtualFile, content: List[(String, String, TextAttributes)]): EditorFile =
     EditorFile(file.getName, content)
 }

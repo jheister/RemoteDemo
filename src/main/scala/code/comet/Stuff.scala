@@ -1,5 +1,8 @@
 package code.comet
 
+import java.awt.Color
+
+import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.vfs.VirtualFile
 import net.liftweb.http.{CometListener, RenderOut, CometActor}
 import net.liftweb.common.SimpleActor
@@ -17,14 +20,22 @@ class Stuff extends CometActor with CometListener {
   }
 
   def render = {
-    val selectedFileContent: Iterable[(String, String)] = section.selected.map(_.content).getOrElse(Nil)
+    val selectedFileContent: Iterable[(String, String, TextAttributes)] = section.selected.map(_.content).getOrElse(Nil)
 
     ".editor-tab *" #> section.openFiles.reverse.map(file => {
       ".filename *" #> file.name &
         ".filename [class]" #> (if(section.isSelected(file)) { "selected" } else { "" })
     }) &
     ".code-token" #> selectedFileContent.map {
-      case (token, value) => "* *" #> value & "* [class+]" #> token
+      case (token, value, attributes) => {
+        "* *" #> value &
+        "* [class+]" #> token &
+        "* [style+]" #> Option(attributes.getForegroundColor).map(toHexString).map("color:%s;".format(_)).getOrElse("")
+      }
     }
+  }
+
+  private def toHexString(color: Color) = {
+    "#%02x%02x%02x".format(color.getRed, color.getGreen, color.getBlue)
   }
 }

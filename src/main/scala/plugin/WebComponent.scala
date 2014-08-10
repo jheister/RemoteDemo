@@ -1,7 +1,12 @@
 package plugin
 
+import java.lang.reflect.Field
+import java.util
+
 import com.intellij.openapi.components.ApplicationComponent
 import com.intellij.openapi.editor.Document
+import com.intellij.openapi.editor.colors.ColorKey
+import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.psi.{PsiFile, PsiDocumentManager}
 import com.intellij.psi.PsiDocumentManager.Listener
 import org.eclipse.jetty.server.Server
@@ -42,6 +47,7 @@ class WebComponent extends ApplicationComponent {
       server.setHandler(context0)
 
       server.start()
+
 
 
       val bus = ApplicationManager.getApplication().getMessageBus()
@@ -100,11 +106,11 @@ object FileEditorEvents extends FileEditorManagerListener {
     EditorSectionEventHandler ! SelectionChanged(Option(p1.getNewFile).map(_.getName))
   }
 
-  def convert(iterator: HighlighterIterator, doc: Document) = new Iterator[(String, String)] {
+  def convert(iterator: HighlighterIterator, doc: Document) = new Iterator[(String, String, TextAttributes)] {
     def hasNext: Boolean = !iterator.atEnd()
 
-    def next(): (String, String) = {
-      val data = (iterator.getTokenType.toString, doc.getText(new TextRange(iterator.getStart, iterator.getEnd)))
+    def next(): (String, String, TextAttributes) = {
+      val data = (iterator.getTokenType.toString, doc.getText(new TextRange(iterator.getStart, iterator.getEnd)), iterator.getTextAttributes)
       iterator.advance()
 
       data
