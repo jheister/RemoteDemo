@@ -1,6 +1,6 @@
 package code.comet
 
-import java.awt.Color
+import java.awt.{Font, Color}
 
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.vfs.VirtualFile
@@ -30,9 +30,18 @@ class Stuff extends CometActor with CometListener {
       case (token, value, attributes) => {
         "* *" #> value &
         "* [class+]" #> token &
-        "* [style+]" #> Option(attributes.getForegroundColor).map(toHexString).map("color:%s;".format(_)).getOrElse("")
+        "* [style+]" #> Option(attributes.getForegroundColor).map(toHexString).map("color:%s;".format(_)).getOrElse("") &
+        "* [style+]" #> Option(attributes.getBackgroundColor).map(toHexString).map("background-color:%s;".format(_)).getOrElse("") &
+        "* [style+]" #> Option(attributes.getFontType).map(toWeight).getOrElse("")
       }
     }
+  }
+
+  private def toWeight(id: Int) = id match {
+    case Font.PLAIN => "font-weight:normal;font-style:normal;"
+    case Font.BOLD => "font-weight:bold;font-style:normal;"
+    case Font.ITALIC => "font-weight:normal;font-style:italic;"
+    case e => throw new RuntimeException("Unknown weight: " + e)
   }
 
   private def toHexString(color: Color) = {
