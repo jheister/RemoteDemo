@@ -17,7 +17,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.{Project, ProjectManagerListener, ProjectManager}
 import com.intellij.openapi.fileEditor._
 import com.intellij.openapi.vfs.VirtualFile
-import code.comet.{Line, Token, EditorFile, EditorSectionEventHandler}
+import code.comet._
 import scala.collection.JavaConversions._
 import com.intellij.openapi.fileTypes.FileTypeEditorHighlighterProviders
 import com.intellij.openapi.editor.colors.impl.DefaultColorsScheme
@@ -73,7 +73,7 @@ class WebComponent extends ApplicationComponent {
 
 object FileEditorEvents extends FileEditorManagerListener {
   def fileOpened(p1: FileEditorManager, p2: VirtualFile) {
-    EditorSectionEventHandler ! FileOpened(EditorFile(p2.getName, Vector()))
+    EditorSectionEventHandler ! FileOpened(FileId(p2.getName), EditorFile(p2.getName, Vector()))
 
     val highlighterProviders = FileTypeEditorHighlighterProviders.INSTANCE.allForFileType(p2.getFileType)
 
@@ -94,7 +94,7 @@ object FileEditorEvents extends FileEditorManagerListener {
           case (lineNr, tokens) => Line(lineNr, tokens.map(_._2))
         }
 
-        val changeEvent: ContentChanged = ContentChanged(EditorFile(p2.getName, lines.toVector.sortBy(_.lineNumber)))
+        val changeEvent: ContentChanged = ContentChanged(FileId(p2.getName), EditorFile(p2.getName, lines.toVector.sortBy(_.lineNumber)))
 
         EditorSectionEventHandler ! changeEvent
       }
@@ -110,11 +110,11 @@ object FileEditorEvents extends FileEditorManagerListener {
   }
 
   def fileClosed(p1: FileEditorManager, p2: VirtualFile) {
-    EditorSectionEventHandler ! FileClosed(p2.getName)
+    EditorSectionEventHandler ! FileClosed(FileId(p2.getName), p2.getName)
   }
 
   def selectionChanged(p1: FileEditorManagerEvent) {
-    EditorSectionEventHandler ! SelectionChanged(Option(p1.getNewFile).map(_.getName))
+    EditorSectionEventHandler ! SelectionChanged(Option(p1.getNewFile).map(_.getName).map(FileId(_)))
   }
 
   def convert(iterator: HighlighterIterator, doc: Document) = new Iterator[(Int, Token)] {
@@ -131,10 +131,12 @@ object FileEditorEvents extends FileEditorManagerListener {
 
 }
 
-case class ContentChanged(file: EditorFile)
+trait EditorEvent
 
-case class FileOpened(file: EditorFile)
+case class ContentChanged(id: FileId, file: EditorFile) extends EditorEvent
 
-case class FileClosed(file: String)
+case class FileOpened(id: FileId, file: EditorFile) extends EditorEvent
 
-case class SelectionChanged(newFile: Option[String])
+case class FileClosed(id: FileId, file: String) extends EditorEvent
+
+case class SelectionChanged(newFile: Option[FileId]) extends EditorEvent

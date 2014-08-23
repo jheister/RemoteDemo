@@ -1,46 +1,50 @@
 package code.comet
 
 import com.intellij.openapi.editor.markup.TextAttributes
-import com.intellij.openapi.vfs.VirtualFile
 import net.liftweb.http.ListenerManager
 import net.liftweb.actor.LiftActor
-import plugin.{ContentChanged, SelectionChanged, FileClosed, FileOpened}
+import plugin._
 
 object EditorSectionEventHandler extends LiftActor with ListenerManager {
-  var model = EditorSection()
+  val model = new EditorSection()
   
   override protected def lowPriority = {
-    case FileOpened(file) => model = model.openFile(file); updateListeners()
-    case FileClosed(file) => model = model.closeFile(file); updateListeners()
-    case SelectionChanged(maybeFile) => model = model.changeSelection(maybeFile); updateListeners()
-    case ContentChanged(file) => model = model.update(file); updateListeners()
+    case event: EditorEvent => {
+      model.update(event)
+      updateListeners()
+    }
   }
 
   protected def createUpdate = model
 }
 
-case class EditorSection(openFiles: List[EditorFile] = Nil,
-                         selectedFile: Option[String] = None) {
-  def openFile(file: EditorFile) = copy(openFiles = file :: openFiles)
+class EditorSection() {
+  private var openFiles: Map[FileId, EditorFile] = Map()
+  private var selected: Option[FileId] = None
 
-  def closeFile(file: String) = copy(openFiles = openFiles.filterNot(_.name == file))
+  def openFilesList = (openFiles.map {
+    case (id, file) => OpenFile(file, selected.find(_ == id).isDefined)
+  }).toList.sortBy(_.name)
 
-  def changeSelection(maybeFile: Option[String]) = copy(selectedFile = maybeFile)
+  def selectedFile = selected.flatMap(openFiles.get)
 
-  def update(newFile: EditorFile) = copy(openFiles.map(possiblyUpdate(newFile)))
-
-  def selected: Option[EditorFile] = selectedFile.flatMap(name => openFiles.find(_.name == name))
-
-  def isSelected(file: EditorFile) = selected.map(_ == file).getOrElse(false)
-
-  private def possiblyUpdate(newFile: EditorFile)(file: EditorFile) =
-    if (file.is(newFile)) {
-      newFile
-    } else {
-      file
+  def update(event: EditorEvent) = {
+    event match {
+      case FileOpened(id, file) => openFiles = openFiles.updated(id, file)
+      case FileClosed(id, file) => openFiles = openFiles.filterKeys(_ != id)
+      case SelectionChanged(maybeFile) => selected = maybeFile
+      case ContentChanged(id, file) => openFiles = openFiles.updated(id, file)
     }
-
+  }
 }
+
+case class OpenFile(file: EditorFile, selected: Boolean) {
+  def lines = file.lines
+
+  def name = file.name
+}
+
+case class FileId(name: String)
 
 case class EditorFile(name: String, lines: Vector[Line]) {
   def is(file: EditorFile) = name == file.name

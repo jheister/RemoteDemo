@@ -11,7 +11,7 @@ import plugin.{SelectionChanged, FileClosed, FileOpened}
 class Stuff extends CometActor with CometListener {
   protected def registerWith = EditorSectionEventHandler
 
-  var section: EditorSection = EditorSection()
+  var section: EditorSection = new EditorSection()
 
   override protected def dontCacheRendering: Boolean = true
 
@@ -20,11 +20,11 @@ class Stuff extends CometActor with CometListener {
   }
 
   def render = {
-    val selectedFileContent: Iterable[Token] = section.selected.map(_.lines).getOrElse(Vector.empty).flatMap(_.tokens)
+    val selectedFileContent: Iterable[Token] = section.selectedFile.map(_.lines).getOrElse(Vector.empty).flatMap(_.tokens)
 
-    ".editor-tab *" #> section.openFiles.reverse.map(file => {
+    ".editor-tab *" #> section.openFilesList.map(file => {
       ".filename *" #> file.name &
-        ".filename [class]" #> (if(section.isSelected(file)) { "selected" } else { "" })
+        ".filename [class]" #> (if(file.selected) { "selected" } else { "" })
     }) &
     ".code-token" #> selectedFileContent.map {
       case Token(token, value, attributes) => {
