@@ -11,11 +11,11 @@ object EditorSectionEventHandler extends LiftActor with ListenerManager {
   override protected def lowPriority = {
     case event: EditorEvent => {
       model.update(event)
-      updateListeners()
+      sendListenersMessage((model, event))
     }
   }
 
-  protected def createUpdate = model
+  protected def createUpdate = (model, new EditorEvent {})
 }
 
 class EditorSection() {

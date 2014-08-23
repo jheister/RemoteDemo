@@ -95,7 +95,7 @@ object FileEditorEvents extends FileEditorManagerListener {
         }
 
         val allLines: Vector[Line] = lines.toVector.sortBy(_.lineNumber)
-        val changedLines: Vector[Line] = allLines.dropWhile(_.lineNumber < start).takeWhile(_.lineNumber <= end)
+        val changedLines: Vector[Line] = allLines.dropWhile(_.lineNumber < startLine).takeWhile(_.lineNumber <= endLine)
 
 
         val changeEvent: ContentChanged = ContentChanged(FileId(p2.getName), EditorFile(p2.getName, allLines), changedLines)

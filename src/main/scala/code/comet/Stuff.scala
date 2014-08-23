@@ -4,11 +4,17 @@ import java.awt.{Font, Color}
 
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.vfs.VirtualFile
-import net.liftweb.http.{CometListener, RenderOut, CometActor}
+import net.liftweb.http.js.{JsCmd, JsCmds}
+import net.liftweb.http.js.JsCmds.SetHtml
+import net.liftweb.http.{SHtml, CometListener, RenderOut, CometActor}
 import net.liftweb.common.SimpleActor
-import plugin.{SelectionChanged, FileClosed, FileOpened}
+import plugin._
+
+import scala.xml.NodeSeq
 
 class Stuff extends CometActor with CometListener {
+  val noop = "noop" #> ""
+
   protected def registerWith = EditorSectionEventHandler
 
   var section: EditorSection = new EditorSection()
@@ -16,7 +22,19 @@ class Stuff extends CometActor with CometListener {
   override protected def dontCacheRendering: Boolean = true
 
   override def lowPriority = {
-    case editorSection: EditorSection => section = editorSection; reRender()
+    case (editorSection: EditorSection, ContentChanged(_, newFile, lines)) if (newFile.lines.size == editorSection.selectedFile.map(_.lines.size).getOrElse(0)) => {
+      section = editorSection
+      val updates: Seq[JsCmd] = lines.map {
+        case Line(line, tokens) => {
+          JsCmds.SetHtml("line-" + line, tokens.map(render(_)(<span class="code-token"></span>)).fold(NodeSeq.Empty)(_ ++ _))
+        }
+      }
+      partialUpdate(JsCmds.seqJsToJs(updates))
+    }
+    case (editorSection: EditorSection, _) => {
+      section = editorSection
+      reRender()
+    }
   }
 
   def render = {
@@ -28,15 +46,16 @@ class Stuff extends CometActor with CometListener {
     }) &
     ".code-line" #> lines.map {
       case Line(lineNumber, tokens) =>
-        ".code-token" #> tokens.map {
-          case Token(_, value, attributes) => {
-            "* *" #> value &
-            "* [style+]" #> Option(attributes.getForegroundColor).map(toHexString).map("color:%s;".format(_)).getOrElse("") &
-            "* [style+]" #> Option(attributes.getBackgroundColor).map(toHexString).map("background-color:%s;".format(_)).getOrElse("") &
-            "* [style+]" #> Option(attributes.getFontType).map(toWeight).getOrElse("")
-          }
-        }
+        "* [id]" #> ("line-" + lineNumber) &
+        ".code-token" #> tokens.map(render(_))
     }
+  }
+
+  private def render(token: Token) = {
+    "* *" #> token.value &
+      "* [style+]" #> Option(token.attributes.getForegroundColor).map(toHexString).map("color:%s;".format(_)).getOrElse("") &
+      "* [style+]" #> Option(token.attributes.getBackgroundColor).map(toHexString).map("background-color:%s;".format(_)).getOrElse("") &
+      "* [style+]" #> Option(token.attributes.getFontType).map(toWeight).getOrElse("")
   }
 
   private def toWeight(id: Int) = id match {
