@@ -29,11 +29,12 @@ class EditorSection() {
   def selectedFile = selected.flatMap(openFiles.get)
 
   def update(event: EditorEvent) = {
+    println("Event " + event.getClass)
     event match {
       case FileOpened(id, file) => openFiles = openFiles.updated(id, file)
       case FileClosed(id, file) => openFiles = openFiles.filterKeys(_ != id)
       case SelectionChanged(maybeFile) => selected = maybeFile
-      case ContentChanged(id, file) => openFiles = openFiles.updated(id, file)
+      case ContentChanged(id, file, _) => openFiles = openFiles.updated(id, file)
     }
   }
 }

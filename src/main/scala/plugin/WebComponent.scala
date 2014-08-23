@@ -85,8 +85,8 @@ object FileEditorEvents extends FileEditorManagerListener {
       def repaint(start: Int, end: Int) {
 //        val snippetToRedraw = doc.getText(new TextRange(start, end))
 //
-//        val startLine = doc.getLineNumber(start)
-//        val endLine = doc.getLineNumber(end)
+        val startLine = doc.getLineNumber(start)
+        val endLine = doc.getLineNumber(end)
 
         val content = convert(highlighter.createIterator(0), doc).toVector
 
@@ -94,7 +94,11 @@ object FileEditorEvents extends FileEditorManagerListener {
           case (lineNr, tokens) => Line(lineNr, tokens.map(_._2))
         }
 
-        val changeEvent: ContentChanged = ContentChanged(FileId(p2.getName), EditorFile(p2.getName, lines.toVector.sortBy(_.lineNumber)))
+        val allLines: Vector[Line] = lines.toVector.sortBy(_.lineNumber)
+        val changedLines: Vector[Line] = allLines.dropWhile(_.lineNumber < start).takeWhile(_.lineNumber <= end)
+
+
+        val changeEvent: ContentChanged = ContentChanged(FileId(p2.getName), EditorFile(p2.getName, allLines), changedLines)
 
         EditorSectionEventHandler ! changeEvent
       }
@@ -133,7 +137,7 @@ object FileEditorEvents extends FileEditorManagerListener {
 
 trait EditorEvent
 
-case class ContentChanged(id: FileId, file: EditorFile) extends EditorEvent
+case class ContentChanged(id: FileId, file: EditorFile, changedLines: Vector[Line]) extends EditorEvent
 
 case class FileOpened(id: FileId, file: EditorFile) extends EditorEvent
 
