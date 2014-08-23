@@ -29,12 +29,11 @@ class Stuff extends CometActor with CometListener {
     ".code-line" #> lines.map {
       case Line(lineNumber, tokens) =>
         ".code-token" #> tokens.map {
-          case Token(token, value, attributes) => {
+          case Token(_, value, attributes) => {
             "* *" #> value &
-              "* [class+]" #> token &
-              "* [style+]" #> Option(attributes.getForegroundColor).map(toHexString).map("color:%s;".format(_)).getOrElse("") &
-              "* [style+]" #> Option(attributes.getBackgroundColor).map(toHexString).map("background-color:%s;".format(_)).getOrElse("") &
-              "* [style+]" #> Option(attributes.getFontType).map(toWeight).getOrElse("")
+            "* [style+]" #> Option(attributes.getForegroundColor).map(toHexString).map("color:%s;".format(_)).getOrElse("") &
+            "* [style+]" #> Option(attributes.getBackgroundColor).map(toHexString).map("background-color:%s;".format(_)).getOrElse("") &
+            "* [style+]" #> Option(attributes.getFontType).map(toWeight).getOrElse("")
           }
         }
     }
