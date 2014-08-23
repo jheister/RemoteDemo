@@ -17,7 +17,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.{Project, ProjectManagerListener, ProjectManager}
 import com.intellij.openapi.fileEditor._
 import com.intellij.openapi.vfs.VirtualFile
-import code.comet.{EditorFile, EditorSectionEventHandler}
+import code.comet.{Line, Token, EditorFile, EditorSectionEventHandler}
 import scala.collection.JavaConversions._
 import com.intellij.openapi.fileTypes.FileTypeEditorHighlighterProviders
 import com.intellij.openapi.editor.colors.impl.DefaultColorsScheme
@@ -73,7 +73,7 @@ class WebComponent extends ApplicationComponent {
 
 object FileEditorEvents extends FileEditorManagerListener {
   def fileOpened(p1: FileEditorManager, p2: VirtualFile) {
-    EditorSectionEventHandler ! FileOpened(EditorFile(p2, Nil))
+    EditorSectionEventHandler ! FileOpened(EditorFile(p2.getName, Vector()))
 
     val highlighterProviders = FileTypeEditorHighlighterProviders.INSTANCE.allForFileType(p2.getFileType)
 
@@ -82,10 +82,21 @@ object FileEditorEvents extends FileEditorManagerListener {
     val highlighter = highlighterProviders.get(0).getEditorHighlighter(p1.getProject, p2.getFileType, p2, new DefaultColorsScheme(DefaultColorSchemesManager.getInstance()))
 
     highlighter.setEditor(new HighlighterClient {
-      def repaint(x: Int, y: Int) {
-        val content = convert(highlighter.createIterator(0), doc)
+      def repaint(start: Int, end: Int) {
+//        val snippetToRedraw = doc.getText(new TextRange(start, end))
+//
+//        val startLine = doc.getLineNumber(start)
+//        val endLine = doc.getLineNumber(end)
 
-        EditorSectionEventHandler ! ContentChanged(EditorFile(p2, content.toList))
+        val content = convert(highlighter.createIterator(0), doc).toVector
+
+        val lines = content.groupBy(_._1).map {
+          case (lineNr, tokens) => Line(lineNr, tokens.map(_._2))
+        }
+
+        val changeEvent: ContentChanged = ContentChanged(EditorFile(p2.getName, lines.toVector.sortBy(_.lineNumber)))
+
+        EditorSectionEventHandler ! changeEvent
       }
 
       def getDocument: Document = doc
@@ -106,11 +117,12 @@ object FileEditorEvents extends FileEditorManagerListener {
     EditorSectionEventHandler ! SelectionChanged(Option(p1.getNewFile).map(_.getName))
   }
 
-  def convert(iterator: HighlighterIterator, doc: Document) = new Iterator[(String, String, TextAttributes)] {
+  def convert(iterator: HighlighterIterator, doc: Document) = new Iterator[(Int, Token)] {
     def hasNext: Boolean = !iterator.atEnd()
 
-    def next(): (String, String, TextAttributes) = {
-      val data = (iterator.getTokenType.toString, doc.getText(new TextRange(iterator.getStart, iterator.getEnd)), iterator.getTextAttributes)
+    def next() = {
+      val lineNr = doc.getLineNumber(iterator.getStart)
+      val data = (lineNr, Token(iterator.getTokenType.toString, doc.getText(new TextRange(iterator.getStart, iterator.getEnd)), iterator.getTextAttributes))
       iterator.advance()
 
       data

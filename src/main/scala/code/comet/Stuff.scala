@@ -20,14 +20,14 @@ class Stuff extends CometActor with CometListener {
   }
 
   def render = {
-    val selectedFileContent: Iterable[(String, String, TextAttributes)] = section.selected.map(_.content).getOrElse(Nil)
+    val selectedFileContent: Iterable[Token] = section.selected.map(_.lines).getOrElse(Vector.empty).flatMap(_.tokens)
 
     ".editor-tab *" #> section.openFiles.reverse.map(file => {
       ".filename *" #> file.name &
         ".filename [class]" #> (if(section.isSelected(file)) { "selected" } else { "" })
     }) &
     ".code-token" #> selectedFileContent.map {
-      case (token, value, attributes) => {
+      case Token(token, value, attributes) => {
         "* *" #> value &
         "* [class+]" #> token &
         "* [style+]" #> Option(attributes.getForegroundColor).map(toHexString).map("color:%s;".format(_)).getOrElse("") &

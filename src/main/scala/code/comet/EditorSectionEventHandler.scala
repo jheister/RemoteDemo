@@ -42,11 +42,10 @@ case class EditorSection(openFiles: List[EditorFile] = Nil,
 
 }
 
-case class EditorFile(name: String, content: List[(String, String, TextAttributes)]) {
+case class EditorFile(name: String, lines: Vector[Line]) {
   def is(file: EditorFile) = name == file.name
 }
 
-object EditorFile {
-  def apply(file: VirtualFile, content: List[(String, String, TextAttributes)]): EditorFile =
-    EditorFile(file.getName, content)
-}
+case class Line(lineNumber: Int, tokens: Vector[Token])
+
+case class Token(tokenType: String, value: String, attributes: TextAttributes)
