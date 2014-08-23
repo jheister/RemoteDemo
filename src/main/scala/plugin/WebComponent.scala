@@ -125,8 +125,8 @@ object FileEditorEvents extends FileEditorManagerListener {
     def hasNext: Boolean = !iterator.atEnd()
 
     def next() = {
-      val lineNr = doc.getLineNumber(iterator.getStart)
-      val data = (lineNr, Token(iterator.getTokenType.toString, doc.getText(new TextRange(iterator.getStart, iterator.getEnd)), iterator.getTextAttributes))
+      val lineNr = doc.getLineNumber(iterator.getEnd)
+      val data = (lineNr, Token(iterator.getTokenType.toString, doc.getText(new TextRange(iterator.getStart, iterator.getEnd)).replace("\n", ""), iterator.getTextAttributes))
       iterator.advance()
 
       data

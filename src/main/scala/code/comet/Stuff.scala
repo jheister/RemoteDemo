@@ -20,20 +20,23 @@ class Stuff extends CometActor with CometListener {
   }
 
   def render = {
-    val selectedFileContent: Iterable[Token] = section.selectedFile.map(_.lines).getOrElse(Vector.empty).flatMap(_.tokens)
+    val lines = section.selectedFile.map(_.lines).getOrElse(Vector.empty)
 
     ".editor-tab *" #> section.openFilesList.map(file => {
       ".filename *" #> file.name &
         ".filename [class]" #> (if(file.selected) { "selected" } else { "" })
     }) &
-    ".code-token" #> selectedFileContent.map {
-      case Token(token, value, attributes) => {
-        "* *" #> value &
-        "* [class+]" #> token &
-        "* [style+]" #> Option(attributes.getForegroundColor).map(toHexString).map("color:%s;".format(_)).getOrElse("") &
-        "* [style+]" #> Option(attributes.getBackgroundColor).map(toHexString).map("background-color:%s;".format(_)).getOrElse("") &
-        "* [style+]" #> Option(attributes.getFontType).map(toWeight).getOrElse("")
-      }
+    ".code-line" #> lines.map {
+      case Line(lineNumber, tokens) =>
+        ".code-token" #> tokens.map {
+          case Token(token, value, attributes) => {
+            "* *" #> value &
+              "* [class+]" #> token &
+              "* [style+]" #> Option(attributes.getForegroundColor).map(toHexString).map("color:%s;".format(_)).getOrElse("") &
+              "* [style+]" #> Option(attributes.getBackgroundColor).map(toHexString).map("background-color:%s;".format(_)).getOrElse("") &
+              "* [style+]" #> Option(attributes.getFontType).map(toWeight).getOrElse("")
+          }
+        }
     }
   }
 
