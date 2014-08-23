@@ -12,7 +12,7 @@ import plugin._
 
 import scala.xml.NodeSeq
 
-class Stuff extends CometActor with CometListener {
+class SelectedFile extends CometActor with CometListener {
   val noop = "noop" #> ""
 
   protected def registerWith = EditorSectionEventHandler
@@ -40,10 +40,6 @@ class Stuff extends CometActor with CometListener {
   def render = {
     val lines = section.selectedFile.map(_.lines).getOrElse(Vector.empty)
 
-    ".editor-tab *" #> section.openFilesList.map(file => {
-      ".filename *" #> file.name &
-        ".filename [class]" #> (if(file.selected) { "selected" } else { "" })
-    }) &
     ".code-line" #> lines.map {
       case Line(lineNumber, tokens) =>
         "* [id]" #> ("line-" + lineNumber) &
