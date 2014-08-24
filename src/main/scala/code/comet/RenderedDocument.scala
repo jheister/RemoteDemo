@@ -8,17 +8,17 @@ import net.liftweb.http.{CometListener, RenderOut, CometActor}
 class DocumentContent {
   private var documentContent: Vector[Line] = Vector.empty
 
-  def apply(change: DocumentChange) = {
+  def apply(change: DocumentChange): Unit = {
     val (unchangedHead, remaining) = documentContent.splitAt(change.start)
-    val (removed, unchangedTail) = remaining.splitAt(change.end - change.start + 1)
-
-//    println("================")
-//    removed.map(_.tokens.map(_.value).mkString("")).foreach(println)
-//    println("================")
-//    change.lines.map(_.tokens.map(_.value).mkString("")).foreach(println)
-//    println("================")
+    val (_, unchangedTail) = remaining.splitAt(change.end - change.start + 1)
 
     documentContent = unchangedHead ++ change.lines ++ unchangedTail
+  }
+
+  def apply(change: UpdateLines): Unit = {
+    change.lines.foreach {
+      case (lineNr, line) => apply(DocumentChange(change.id, lineNr, lineNr, Vector(line)))
+    }
   }
 
   def clear: Unit = documentContent = Vector.empty
@@ -40,6 +40,10 @@ class RenderedDocument extends CometActor with CometListener {
     case Clear => contents.clear; myDocument = None; reRender()
     case Show(id) => contents.clear; myDocument = Some(id); reRender()
     case dc@DocumentChange(id, start, end, newContent) if myDocument.filter(_ == id).isDefined => {
+      contents.apply(dc)
+      reRender()
+    }
+    case dc@UpdateLines(id, lines) if myDocument.filter(_ == id).isDefined => {
       contents.apply(dc)
       reRender()
     }
@@ -71,6 +75,8 @@ class RenderedDocument extends CometActor with CometListener {
     "#%02x%02x%02x".format(color.getRed, color.getGreen, color.getBlue)
   }
 }
+
+case class UpdateLines(id: FileId, lines: Vector[(Int, Line)])
 
 case class DocumentChange(id: FileId, start: Int, end: Int, lines: Vector[Line])
 

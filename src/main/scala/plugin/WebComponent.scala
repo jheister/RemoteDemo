@@ -73,23 +73,25 @@ class WebComponent extends ApplicationComponent {
 }
 
 object LineChangePublishingListener extends DocumentListener {
-  override def beforeDocumentChange(event: DocumentEvent): Unit = {}
-
-  override def documentChanged(event: DocumentEvent): Unit = {
+  override def beforeDocumentChange(event: DocumentEvent): Unit = {
     val doc = event.getDocument
 
     val start = doc.getLineNumber(event.getOffset)
-    val end = doc.getLineNumber(event.getOffset + event.getNewLength)
     val oldEnd = (start - 1) + event.getOldFragment.toString.split("\n", -1).size
 
-    val newSnippet = doc.getText(new TextRange(
-      doc.getLineStartOffset(start),
-      doc.getLineEndOffset(end)))
+    val pre = doc.getText(new TextRange(doc.getLineStartOffset(start), event.getOffset))
 
-    val newLines = newSnippet.split("\n", -1).map(v => Line(0, Vector(Token(null, v.replace("\n", ""), new TextAttributes())))).toVector
+    val post = doc.getText(new TextRange(event.getOffset + event.getOldLength, doc.getLineEndOffset(doc.getLineNumber(event.getOffset + event.getOldLength))))
+
+    val newSnippet = pre + event.getNewFragment + post
+
+    val newLines = newSnippet.split("\n", -1).map(v => Line(0, Vector(Token(v.replace("\n", ""), new TextAttributes())))).toVector
 
     val file = FileDocumentManager.getInstance().getFile(doc)
     DocumentEvents ! DocumentChange(FileId(file.getName), start, oldEnd, newLines)
+  }
+
+  override def documentChanged(event: DocumentEvent): Unit = {
   }
 }
 
@@ -110,29 +112,16 @@ object FileEditorEvents extends FileEditorManagerListener {
       var text = doc.getText
 
       def repaint(start: Int, end: Int) {
-//        val snippetToRedraw = doc.getText(new TextRange(start, end))
-//
-//
-//        val startLine = doc.getLineNumber(start)
-//        val endLine = doc.getLineNumber(end)
-//
-//
-//        val content = convert(highlighter.createIterator(0), doc).toVector
-//
-//        val lines = content.groupBy(_._1).map {
-//          case (lineNr, tokens) => Line(lineNr, tokens.map(_._2))
-//        }
-//
-//        val allLines: Vector[Line] = lines.toVector.sortBy(_.lineNumber)
-//        val changedLines: Vector[Line] = allLines.dropWhile(_.lineNumber < startLine).takeWhile(_.lineNumber <= endLine)
-//
-//
-//        val changeEvent: ContentChanged = ContentChanged(FileId(p2.getName), EditorFile(p2.getName, allLines), changedLines)
-//
-//
-//        DocumentEvents ! DocumentChange(FileId(p2.getName), startLine, endLine, changedLines)
-//
-//        EditorSectionEventHandler ! changeEvent
+        val content = convert(highlighter.createIterator(0), doc).toVector
+
+        val lines = content.groupBy(_._1).map {
+          case (lineNr, tokens) => Line(lineNr, tokens.map(_._2))
+        }
+
+        val allLines: Vector[Line] = lines.toVector.sortBy(_.lineNumber)
+        val changedLines: Vector[Line] = allLines.dropWhile(_.lineNumber < doc.getLineNumber(start)).takeWhile(_.lineNumber <= doc.getLineNumber(end))
+
+        DocumentEvents ! UpdateLines(FileId(p2.getName), changedLines.map(l => (l.lineNumber, l)))
       }
 
       def getDocument: Document = doc
@@ -150,12 +139,20 @@ object FileEditorEvents extends FileEditorManagerListener {
   }
 
   def selectionChanged(p1: FileEditorManagerEvent) {
-    val maybeFile = Option(p1.getNewFile).map(_.getName).map(FileId(_))
+    Option(p1.getNewFile) match {
+      case Some(file) => {
+        println("Selected")
+        DocumentEvents ! Show(FileId(file.getName))
+        val doc = FileDocumentManager.getInstance().getDocument(file)
 
-    maybeFile match {
-      case Some(id) => DocumentEvents ! Show(id)
+        val lines = doc.getText.split("\n", -1).map(v => Line(0, Vector(Token(v.replace("\n", ""), new TextAttributes())))).toVector
+
+        DocumentEvents ! DocumentChange(FileId(file.getName), 0, lines.size, lines)
+      }
       case None => DocumentEvents ! Clear
     }
+
+    val maybeFile = Option(p1.getNewFile).map(_.getName).map(FileId(_))
 
     EditorSectionEventHandler ! SelectionChanged(maybeFile)
   }
@@ -164,8 +161,10 @@ object FileEditorEvents extends FileEditorManagerListener {
     def hasNext: Boolean = !iterator.atEnd()
 
     def next() = {
-      val lineNr = doc.getLineNumber(iterator.getStart)
-      val data = (lineNr, Token(iterator.getTokenType.toString, doc.getText(new TextRange(iterator.getStart, iterator.getEnd)).replace("\n", ""), iterator.getTextAttributes))
+      //handle tokens that span lines
+
+      val lineNr = doc.getLineNumber(iterator.getEnd)
+      val data = (lineNr, Token(doc.getText(new TextRange(iterator.getStart, iterator.getEnd)).replace("\n", ""), iterator.getTextAttributes))
       iterator.advance()
 
       data

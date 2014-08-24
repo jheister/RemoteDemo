@@ -52,4 +52,4 @@ case class EditorFile(name: String, lines: Vector[Line]) {
 
 case class Line(lineNumber: Int, tokens: Vector[Token])
 
-case class Token(tokenType: String, value: String, attributes: TextAttributes)
+case class Token(value: String, attributes: TextAttributes)
