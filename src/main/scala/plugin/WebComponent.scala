@@ -19,15 +19,19 @@ import com.intellij.openapi.project.{Project, ProjectManagerListener, ProjectMan
 import com.intellij.openapi.fileEditor._
 import com.intellij.openapi.vfs.VirtualFile
 import code.comet._
+import scala.annotation.tailrec
 import scala.collection.JavaConversions._
 import com.intellij.openapi.fileTypes.FileTypeEditorHighlighterProviders
 import com.intellij.openapi.editor.colors.impl.DefaultColorsScheme
 import com.intellij.openapi.editor.colors.ex.DefaultColorSchemesManager
 import com.intellij.openapi.editor.ex.util.LexerEditorHighlighter
-import com.intellij.openapi.editor.highlighter.{HighlighterIterator, HighlighterClient}
+import com.intellij.openapi.editor.highlighter.{EditorHighlighter, HighlighterIterator, HighlighterClient}
 import com.intellij.openapi.editor.Document
 
 import com.intellij.openapi.util.TextRange
+
+import scala.collection.immutable.IndexedSeq
+import scala.collection.immutable.Range.Inclusive
 
 class WebComponent extends ApplicationComponent {
   def getComponentName: String = "Web Component"
@@ -105,21 +109,13 @@ object FileEditorEvents extends FileEditorManagerListener {
 
     val highlighter = highlighterProviders.get(0).getEditorHighlighter(p1.getProject, p2.getFileType, p2, new DefaultColorsScheme(DefaultColorSchemesManager.getInstance()))
 
-    doc.removeDocumentListener(LineChangePublishingListener)
+//    doc.removeDocumentListener(LineChangePublishingListener)
     doc.addDocumentListener(LineChangePublishingListener)
 
     highlighter.setEditor(new HighlighterClient {
-      var text = doc.getText
-
       def repaint(start: Int, end: Int) {
-        val content = convert(highlighter.createIterator(0), doc).toVector
-
-        val lines = content.groupBy(_._1).map {
-          case (lineNr, tokens) => Line(lineNr, tokens.map(_._2))
-        }
-
-        val allLines: Vector[Line] = lines.toVector.sortBy(_.lineNumber)
-        val changedLines: Vector[Line] = allLines.dropWhile(_.lineNumber < doc.getLineNumber(start)).takeWhile(_.lineNumber <= doc.getLineNumber(end))
+        val changedLines: Vector[Line] = new LineIterator(TokenIterator(highlighter.createIterator(0))).toVector
+          .dropWhile(_.lineNumber < doc.getLineNumber(start)).takeWhile(_.lineNumber <= doc.getLineNumber(end))
 
         DocumentEvents ! UpdateLines(FileId(p2.getName), changedLines.map(l => (l.lineNumber, l)))
       }
@@ -141,7 +137,6 @@ object FileEditorEvents extends FileEditorManagerListener {
   def selectionChanged(p1: FileEditorManagerEvent) {
     Option(p1.getNewFile) match {
       case Some(file) => {
-        println("Selected")
         DocumentEvents ! Show(FileId(file.getName))
         val doc = FileDocumentManager.getInstance().getDocument(file)
 
@@ -156,21 +151,61 @@ object FileEditorEvents extends FileEditorManagerListener {
 
     EditorSectionEventHandler ! SelectionChanged(maybeFile)
   }
+}
 
-  def convert(iterator: HighlighterIterator, doc: Document) = new Iterator[(Int, Token)] {
-    def hasNext: Boolean = !iterator.atEnd()
+class BasicTokenIterator(iterator: HighlighterIterator) extends Iterator[(Int, Int, Token)] {
+  val doc: Document = iterator.getDocument
 
-    def next() = {
-      //handle tokens that span lines
+  override def hasNext: Boolean = !iterator.atEnd()
 
-      val lineNr = doc.getLineNumber(iterator.getEnd)
-      val data = (lineNr, Token(doc.getText(new TextRange(iterator.getStart, iterator.getEnd)).replace("\n", ""), iterator.getTextAttributes))
-      iterator.advance()
+  override def next() = {
+    val data = (doc.getLineNumber(iterator.getStart),
+                doc.getLineNumber(iterator.getEnd),
+                Token(doc.getText(new TextRange(iterator.getStart, iterator.getEnd)), iterator.getTextAttributes))
+    iterator.advance()
 
-      data
+    data
+  }
+}
+
+object TokenIterator {
+  def apply(iterator: HighlighterIterator) = new BasicTokenIterator(iterator).flatMap {
+    case (start, end, token) if (start == end) => Vector((start, token))
+    case (start, end, token) => {
+      val splitTokens: Vector[Token] = token.splitAcrossLines
+
+      val lines = start to end
+      val tokensPerLine = lines.zip(splitTokens).toVector
+
+      if (lines.size != tokensPerLine.size) {
+        throw new RuntimeException("Splitting tokens failed. %s lines but %s tokens.".format(lines.size, tokensPerLine.size))
+      }
+
+      tokensPerLine.filterNot(_._2.value.isEmpty)
     }
   }
+}
 
+class LineIterator(underlying: Iterator[(Int, Token)]) extends Iterator[Line] {
+  private val iterator = underlying.buffered
+
+  override def hasNext: Boolean = iterator.hasNext
+
+  override def next(): Line = {
+    val (lineNr, _) = iterator.head
+
+    val remainingTokens = tokenInRow(Vector(), lineNr)
+
+    Line(lineNr, remainingTokens)
+  }
+
+  @tailrec private def tokenInRow(acc: Vector[Token], line: Int): Vector[Token] = {
+    if (!iterator.hasNext || iterator.head._1 != line) {
+      acc
+    } else {
+      tokenInRow(acc :+ iterator.next()._2, line)
+    }
+  }
 }
 
 trait EditorEvent

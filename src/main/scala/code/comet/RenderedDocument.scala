@@ -44,6 +44,10 @@ class RenderedDocument extends CometActor with CometListener {
       reRender()
     }
     case dc@UpdateLines(id, lines) if myDocument.filter(_ == id).isDefined => {
+      lines.foreach(line => {
+        println("Told to update line " + line._1)
+      })
+
       contents.apply(dc)
       reRender()
     }
@@ -52,7 +56,7 @@ class RenderedDocument extends CometActor with CometListener {
   override def render = {
     ".code-line" #> contents.lines.map {
       case Line(lineNumber, tokens) =>
-        "* [id]" #> ("line-" + lineNumber) &
+//        "* [id]" #> ("line-" + lineNumber) &
           ".code-token" #> tokens.map(render(_))
     }
   }
