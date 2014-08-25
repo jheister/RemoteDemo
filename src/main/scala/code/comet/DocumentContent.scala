@@ -1,5 +1,6 @@
 package code.comet
 
+import com.intellij.openapi.editor.markup.TextAttributes
 import net.liftweb.http.js.jquery.JqJE.{JqRemove, JqId}
 import net.liftweb.http.js.jquery.JqJsCmds
 import net.liftweb.http.js.{JsExp, JsCmds, JsCmd}
@@ -33,5 +34,12 @@ case class DocumentContent(documentContent: Vector[RenderedLine] = Vector.empty)
 }
 
 case class RenderedLine(id: String, line: Line) {
-  def tokens = line.tokens
+  def tokens = {
+    val meaningful = line.tokens.filterNot(_.value.isEmpty)
+    if (meaningful.isEmpty) {
+      Vector(Token(" ", new TextAttributes()))
+    } else {
+      meaningful
+    }
+  }
 }

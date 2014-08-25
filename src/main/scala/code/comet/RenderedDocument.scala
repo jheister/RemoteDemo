@@ -30,7 +30,7 @@ class RenderedDocument extends CometActor with CometListener {
   }
 
   override def render = {
-    ".editor *" #> contents.documentContent.map(TokenRender.render(_))
+    ".editor *" #> ("*" #> contents.documentContent.map(TokenRender.render(_)))
   }
 }
 
