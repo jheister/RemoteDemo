@@ -9,6 +9,7 @@ import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.colors.ColorKey
 import com.intellij.openapi.editor.event.{DocumentEvent, DocumentListener}
 import com.intellij.openapi.editor.markup.TextAttributes
+import com.intellij.openapi.fileEditor.impl.FileDocumentManagerImpl
 import com.intellij.psi.{PsiFile, PsiDocumentManager}
 import com.intellij.psi.PsiDocumentManager.Listener
 import com.intellij.util.messages.MessageBusConnection
@@ -75,10 +76,17 @@ class WebComponent extends ApplicationComponent {
 
             override def beforeDocumentSaving(document: Document): Unit = {}
 
+            var openedFiles: List[FileId] = Nil
+
             override def fileContentLoaded(file: VirtualFile, document: Document): Unit = {
-              val listener: NofifyingListener = new NofifyingListener(p1, file, document)
-              listener.reset()
-              FileDocumentManager.getInstance().getDocument(file).addDocumentListener(listener)
+              if (!openedFiles.contains(FileId(file.getName))) {
+                openedFiles = FileId(file.getName) :: openedFiles
+                val listener: NofifyingListener = new NofifyingListener(p1, file, document)
+                listener.reset()
+                FileDocumentManager.getInstance().getDocument(file).addDocumentListener(listener)
+              } else {
+                println("Not tracking duplicate opening of file")
+              }
             }
 
             override def unsavedDocumentsDropped(): Unit = {}
