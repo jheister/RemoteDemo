@@ -25,7 +25,7 @@ object DocumentEvents extends LiftActor with ListenerManager {
       println("===========================")
 
 
-      sendListenersMessage(documents(id))
+      sendListenersMessage(dc)
     }
     case Reset(id, lines) => {
       documents = documents.updated(id, DocumentContent(lines))

@@ -14,10 +14,10 @@ class RenderedDocument extends CometActor with CometListener {
 
   override def lowPriority = {
     case replacecmentDoc: DocumentContent => contents = replacecmentDoc; reRender()
-//    case dc: DocumentChange => {
-//      contents.apply(dc)
-//      reRender()
-//    }
+    case dc: DocumentChange => {
+      contents = contents.apply(dc)
+      reRender()
+    }
   }
 
   override def render = {
