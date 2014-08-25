@@ -13,7 +13,7 @@ object DocumentEvents extends LiftActor with ListenerManager {
     case Show(id) => theFile = Some(id); sendListenersMessage(documents(id))
     case Clear => theFile = None
     case dc@DocumentChange(id, _, _, _) => {
-      documents = documents.updated(id, documents(id).apply(dc))
+      documents = documents.updated(id, documents(id).apply(dc)._2)
 
       println("===========================")
       println(documents(id).toString)
@@ -28,7 +28,7 @@ object DocumentEvents extends LiftActor with ListenerManager {
       sendListenersMessage(dc)
     }
     case Reset(id, lines) => {
-      documents = documents.updated(id, DocumentContent(lines))
+      documents = documents.updated(id, DocumentContent().resetTo(lines))
       sendListenersMessage(documents(id))
       println("===========================")
       println(documents(id).toString)

@@ -4,31 +4,41 @@ import java.awt.{Font, Color}
 
 import net.liftweb.common.SimpleActor
 import net.liftweb.http.{CometListener, RenderOut, CometActor}
+import net.liftweb.util.CssSel
 
+import scala.xml.NodeSeq
 
 
 class RenderedDocument extends CometActor with CometListener {
-  var contents = new DocumentContent()
+  var contents = DocumentContent()
 
   override protected def registerWith = DocumentEvents
 
   override def lowPriority = {
     case replacecmentDoc: DocumentContent => contents = replacecmentDoc; reRender()
     case dc: DocumentChange => {
-      contents = contents.apply(dc)
-      reRender()
+      val (updateCmd, newContents) = contents.apply(dc)
+
+      contents = newContents
+
+      partialUpdate(updateCmd)
     }
   }
 
   override def render = {
-    ".code-line" #> contents.lines.zipWithIndex.map {
-      case (Line(lineNumber, tokens), nr) =>
-//        "* [id]" #> ("line-" + lineNumber) &
-          ".code-token" #>  tokens.map(render(_))
-    }
+    ".editor *" #> contents.documentContent.map(TokenRender.render(_))
   }
+}
 
-  private def render(token: Token) = {
+object TokenRender {
+  import net.liftweb.util.Helpers._
+
+    def render(line: RenderedLine): CssSel = {
+      ".code-line [id]" #> line.id &
+      ".code-token" #> line.tokens.map(t => render(t))
+    }
+
+  def render(token: Token) = {
     "* *" #> token.value &
       "* [style+]" #> Option(token.attributes.getForegroundColor).map(toHexString).map("color:%s;".format(_)).getOrElse("") &
       "* [style+]" #> Option(token.attributes.getBackgroundColor).map(toHexString).map("background-color:%s;".format(_)).getOrElse("") &
