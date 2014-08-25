@@ -71,6 +71,20 @@ class DocumentContentTest extends FunSpec with MustMatchers {
           |3
           |4""".stripMargin)
     }
+
+    it("can update state when no lines are being removed") {
+      val content = new DocumentContent
+
+      content.apply(DocumentChange(null, 0, 5, Vector(line("0"), line("1"), line("2"), line("3"), line("4"))))._2
+             .apply(DocumentChange(null, 5, 5, Vector(line("new-line-at-the-end"))))._2
+             .toString must be(
+        """0
+          |1
+          |2
+          |3
+          |4
+          |new-line-at-the-end""".stripMargin)
+    }
   }
 
   def line(contents: String) = Line(0, Vector(Token(contents, new TextAttributes())))

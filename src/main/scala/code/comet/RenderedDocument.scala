@@ -21,7 +21,11 @@ class RenderedDocument extends CometActor with CometListener {
 
       contents = newContents
 
-      partialUpdate(updateCmd)
+      if (updateCmd.isDefined) {
+        partialUpdate(updateCmd.get)
+      } else {
+        reRender()
+      }
     }
   }
 
