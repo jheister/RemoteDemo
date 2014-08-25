@@ -15,24 +15,16 @@ object DocumentEvents extends LiftActor with ListenerManager {
     case dc@DocumentChange(id, _, _, _) => {
       documents = documents.updated(id, documents(id).apply(dc)._2)
 
-      println("===========================")
-      println(documents(id).toString)
-      println("===========================")
-
-      println("Change is from line %s to %s.".format(dc.start, dc.end))
-      println(dc.lines.map(_.tokens.map(_.value).mkString("")).mkString("\n"))
-
-      println("===========================")
-
-
-      sendListenersMessage(dc)
+      if (theFile == Some(id)) {
+        sendListenersMessage(dc)
+      }
     }
     case Reset(id, lines) => {
       documents = documents.updated(id, DocumentContent().resetTo(lines))
-      sendListenersMessage(documents(id))
-      println("===========================")
-      println(documents(id).toString)
-      println("===========================")
+
+      if (theFile == Some(id)) {
+        sendListenersMessage(documents(id))
+      }
     }
   }
 }

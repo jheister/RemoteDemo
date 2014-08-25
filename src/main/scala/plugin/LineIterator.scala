@@ -87,14 +87,9 @@ class NofifyingListener(project: Project, file: VirtualFile, doc: Document) exte
     highlighter.documentChanged(event)
     val (start, oldEnd, newEnd) = lineChangeOffsets(event)
 
-
     val lines = allLines
     val changedLines: Vector[Line] =
       lines.dropWhile(_.lineNumber < start).takeWhile(_.lineNumber <= newEnd)
-
-    println("==============here================")
-    println(lines.map(l => l.lineNumber + ":" +  l.tokens.map(_.value).mkString("")).mkString("\n"))
-    println("==============here================")
 
     DocumentEvents ! DocumentChange(FileId(file.getName), start, oldEnd, changedLines)
   }

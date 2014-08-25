@@ -112,11 +112,6 @@ object FileEditorEvents extends FileEditorManagerListener {
     Option(p1.getNewFile) match {
       case Some(file) => {
         DocumentEvents ! Show(FileId(file.getName))
-//        val doc = FileDocumentManager.getInstance().getDocument(file)
-//
-//        val lines = doc.getText.split("\n", -1).map(v => Line(0, Vector(Token(v.replace("\n", ""), new TextAttributes())))).toVector
-//
-//        DocumentEvents ! DocumentChange(FileId(file.getName), 0, lines.size, lines)
       }
       case None => DocumentEvents ! Clear
     }
