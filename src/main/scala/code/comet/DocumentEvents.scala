@@ -7,14 +7,13 @@ object DocumentEvents extends LiftActor with ListenerManager {
   override protected def createUpdate = null
 
   var theFile: Option[FileId] = None
-  var documents: Map[FileId, DocumentContent] = Map()
+  var documents: Map[FileId, DocumentContent] = Map().withDefaultValue(DocumentContent())
 
   override protected def lowPriority = {
-    case Show(id) => theFile = Some(id); sendListenersMessage(documents.get(id).getOrElse(new DocumentContent))
+    case Show(id) => theFile = Some(id); sendListenersMessage(documents(id))
     case Clear => theFile = None
     case dc@DocumentChange(id, _, _, _) => {
-      if (!documents.contains(id)) { documents = documents.updated(id, new DocumentContent)}
-      documents(id).apply(dc)
+      documents = documents.updated(id, documents(id).apply(dc))
 
       println("===========================")
       println(documents(id).toString)
@@ -29,7 +28,8 @@ object DocumentEvents extends LiftActor with ListenerManager {
       sendListenersMessage(documents(id))
     }
     case Reset(id, lines) => {
-      documents = documents.updated(id, new DocumentContent(lines))
+      documents = documents.updated(id, DocumentContent(lines))
+      sendListenersMessage(documents(id))
       println("===========================")
       println(documents(id).toString)
       println("===========================")

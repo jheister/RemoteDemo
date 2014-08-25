@@ -10,8 +10,7 @@ class DocumentContentTest extends FunSpec with MustMatchers {
       val content = new DocumentContent
 
       content.apply(DocumentChange(null, 0, 5, Vector(line("0"), line("1"), line("2"), line("3"), line("4"))))
-
-      content.toString must be(
+             .toString must be(
         """0
           |1
           |2
@@ -23,9 +22,8 @@ class DocumentContentTest extends FunSpec with MustMatchers {
       val content = new DocumentContent
 
       content.apply(DocumentChange(null, 0, 5, Vector(line("0"), line("1"), line("2"), line("3"), line("4"))))
-      content.apply(DocumentChange(null, 1, 1, Vector(line("new-1"))))
-
-      content.toString must be(
+             .apply(DocumentChange(null, 1, 1, Vector(line("new-1"))))
+             .toString must be(
         """0
           |new-1
           |2
@@ -37,9 +35,8 @@ class DocumentContentTest extends FunSpec with MustMatchers {
       val content = new DocumentContent
 
       content.apply(DocumentChange(null, 0, 5, Vector(line("0"), line("1"), line("2"), line("3"), line("4"))))
-      content.apply(DocumentChange(null, 4, 4, Vector(line("new-4"))))
-
-      content.toString must be(
+             .apply(DocumentChange(null, 4, 4, Vector(line("new-4"))))
+             .toString must be(
         """0
           |1
           |2
@@ -51,9 +48,8 @@ class DocumentContentTest extends FunSpec with MustMatchers {
       val content = new DocumentContent
 
       content.apply(DocumentChange(null, 0, 5, Vector(line("0"), line("1"), line("2"), line("3"), line("4"))))
-      content.apply(DocumentChange(null, 2, 3, Vector(line("new-2"), line("new-3"))))
-
-      content.toString must be(
+             .apply(DocumentChange(null, 2, 3, Vector(line("new-2"), line("new-3"))))
+             .toString must be(
         """0
           |1
           |new-2
@@ -65,10 +61,9 @@ class DocumentContentTest extends FunSpec with MustMatchers {
       val content = new DocumentContent
 
       content.apply(DocumentChange(null, 0, 5, Vector(line("0"), line("1"), line("2"), line("3"), line("4"))))
-      content.apply(DocumentChange(null, 0, 0, Vector(line("new-0"), line("new-0-1"))))
-      content.apply(DocumentChange(null, 1, 1, Vector(line("    new-0-1"))))
-
-      content.toString must be(
+             .apply(DocumentChange(null, 0, 0, Vector(line("new-0"), line("new-0-1"))))
+             .apply(DocumentChange(null, 1, 1, Vector(line("    new-0-1"))))
+             .toString must be(
         """new-0
           |    new-0-1
           |1
