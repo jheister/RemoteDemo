@@ -3,6 +3,7 @@ package plugin
 import java.lang.reflect.Field
 import java.util
 
+import com.intellij.AppTopics
 import com.intellij.openapi.components.ApplicationComponent
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.colors.ColorKey
@@ -10,6 +11,7 @@ import com.intellij.openapi.editor.event.{DocumentEvent, DocumentListener}
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.psi.{PsiFile, PsiDocumentManager}
 import com.intellij.psi.PsiDocumentManager.Listener
+import com.intellij.util.messages.MessageBusConnection
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.nio.SelectChannelConnector
 import org.eclipse.jetty.webapp.WebAppContext
@@ -53,8 +55,6 @@ class WebComponent extends ApplicationComponent {
 
       server.start()
 
-
-
       val bus = ApplicationManager.getApplication().getMessageBus()
       bus.connect().subscribe(ProjectManager.TOPIC, new ProjectManagerListener {
         def projectClosing(p1: Project) {}
@@ -64,7 +64,27 @@ class WebComponent extends ApplicationComponent {
         def projectClosed(p1: Project) {}
 
         def projectOpened(p1: Project) {
-          p1.getMessageBus.connect().subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, FileEditorEvents)
+          val connection = p1.getMessageBus.connect()
+          connection.subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, FileEditorEvents)
+          connection.subscribe(AppTopics.FILE_DOCUMENT_SYNC, new FileDocumentManagerListener {
+            override def beforeAllDocumentsSaving(): Unit = {}
+
+            override def fileContentReloaded(file: VirtualFile, document: Document): Unit = {}
+
+            override def fileWithNoDocumentChanged(file: VirtualFile): Unit = {}
+
+            override def beforeDocumentSaving(document: Document): Unit = {}
+
+            override def fileContentLoaded(file: VirtualFile, document: Document): Unit = {
+              val listener: NofifyingListener = new NofifyingListener(p1, file, document)
+              listener.reset()
+              FileDocumentManager.getInstance().getDocument(file).addDocumentListener(listener)
+            }
+
+            override def unsavedDocumentsDropped(): Unit = {}
+
+            override def beforeFileContentReload(file: VirtualFile, document: Document): Unit = {}
+          })
         }
       })
 
@@ -76,58 +96,12 @@ class WebComponent extends ApplicationComponent {
   def disposeComponent() {}
 }
 
-object LineChangePublishingListener extends DocumentListener {
-  override def beforeDocumentChange(event: DocumentEvent): Unit = {
-    val doc = event.getDocument
 
-    val start = doc.getLineNumber(event.getOffset)
-    val oldEnd = (start - 1) + event.getOldFragment.toString.split("\n", -1).size
 
-    val pre = doc.getText(new TextRange(doc.getLineStartOffset(start), event.getOffset))
-
-    val post = doc.getText(new TextRange(event.getOffset + event.getOldLength, doc.getLineEndOffset(doc.getLineNumber(event.getOffset + event.getOldLength))))
-
-    val newSnippet = pre + event.getNewFragment + post
-
-    val newLines = newSnippet.split("\n", -1).map(v => Line(0, Vector(Token(v.replace("\n", ""), new TextAttributes())))).toVector
-
-    val file = FileDocumentManager.getInstance().getFile(doc)
-    DocumentEvents ! DocumentChange(FileId(file.getName), start, oldEnd, newLines)
-  }
-
-  override def documentChanged(event: DocumentEvent): Unit = {
-  }
-}
 
 object FileEditorEvents extends FileEditorManagerListener {
-  def fileOpened(p1: FileEditorManager, p2: VirtualFile) {
-    EditorSectionEventHandler ! FileOpened(FileId(p2.getName), EditorFile(p2.getName, Vector()))
-
-    val highlighterProviders = FileTypeEditorHighlighterProviders.INSTANCE.allForFileType(p2.getFileType)
-
-    val doc = FileDocumentManager.getInstance().getDocument(p2)
-
-    val highlighter = highlighterProviders.get(0).getEditorHighlighter(p1.getProject, p2.getFileType, p2, new DefaultColorsScheme(DefaultColorSchemesManager.getInstance()))
-
-//    doc.removeDocumentListener(LineChangePublishingListener)
-    doc.addDocumentListener(LineChangePublishingListener)
-
-    highlighter.setEditor(new HighlighterClient {
-      def repaint(start: Int, end: Int) {
-        val changedLines: Vector[Line] = new LineIterator(TokenIterator(highlighter.createIterator(0))).toVector
-          .dropWhile(_.lineNumber < doc.getLineNumber(start)).takeWhile(_.lineNumber <= doc.getLineNumber(end))
-
-        DocumentEvents ! UpdateLines(FileId(p2.getName), changedLines.map(l => (l.lineNumber, l)))
-      }
-
-      def getDocument: Document = doc
-
-      def getProject: Project = p1.getProject
-    })
-
-    highlighter.setText(doc.getText)
-
-    doc.addDocumentListener(highlighter)
+  def fileOpened(p1: FileEditorManager, file: VirtualFile) {
+    EditorSectionEventHandler ! FileOpened(FileId(file.getName), EditorFile(file.getName, Vector()))
   }
 
   def fileClosed(p1: FileEditorManager, p2: VirtualFile) {
@@ -138,11 +112,11 @@ object FileEditorEvents extends FileEditorManagerListener {
     Option(p1.getNewFile) match {
       case Some(file) => {
         DocumentEvents ! Show(FileId(file.getName))
-        val doc = FileDocumentManager.getInstance().getDocument(file)
-
-        val lines = doc.getText.split("\n", -1).map(v => Line(0, Vector(Token(v.replace("\n", ""), new TextAttributes())))).toVector
-
-        DocumentEvents ! DocumentChange(FileId(file.getName), 0, lines.size, lines)
+//        val doc = FileDocumentManager.getInstance().getDocument(file)
+//
+//        val lines = doc.getText.split("\n", -1).map(v => Line(0, Vector(Token(v.replace("\n", ""), new TextAttributes())))).toVector
+//
+//        DocumentEvents ! DocumentChange(FileId(file.getName), 0, lines.size, lines)
       }
       case None => DocumentEvents ! Clear
     }
@@ -153,60 +127,9 @@ object FileEditorEvents extends FileEditorManagerListener {
   }
 }
 
-class BasicTokenIterator(iterator: HighlighterIterator) extends Iterator[(Int, Int, Token)] {
-  val doc: Document = iterator.getDocument
 
-  override def hasNext: Boolean = !iterator.atEnd()
 
-  override def next() = {
-    val data = (doc.getLineNumber(iterator.getStart),
-                doc.getLineNumber(iterator.getEnd),
-                Token(doc.getText(new TextRange(iterator.getStart, iterator.getEnd)), iterator.getTextAttributes))
-    iterator.advance()
 
-    data
-  }
-}
-
-object TokenIterator {
-  def apply(iterator: HighlighterIterator) = new BasicTokenIterator(iterator).flatMap {
-    case (start, end, token) if (start == end) => Vector((start, token))
-    case (start, end, token) => {
-      val splitTokens: Vector[Token] = token.splitAcrossLines
-
-      val lines = start to end
-      val tokensPerLine = lines.zip(splitTokens).toVector
-
-      if (lines.size != tokensPerLine.size) {
-        throw new RuntimeException("Splitting tokens failed. %s lines but %s tokens.".format(lines.size, tokensPerLine.size))
-      }
-
-      tokensPerLine.filterNot(_._2.value.isEmpty)
-    }
-  }
-}
-
-class LineIterator(underlying: Iterator[(Int, Token)]) extends Iterator[Line] {
-  private val iterator = underlying.buffered
-
-  override def hasNext: Boolean = iterator.hasNext
-
-  override def next(): Line = {
-    val (lineNr, _) = iterator.head
-
-    val remainingTokens = tokenInRow(Vector(), lineNr)
-
-    Line(lineNr, remainingTokens)
-  }
-
-  @tailrec private def tokenInRow(acc: Vector[Token], line: Int): Vector[Token] = {
-    if (!iterator.hasNext || iterator.head._1 != line) {
-      acc
-    } else {
-      tokenInRow(acc :+ iterator.next()._2, line)
-    }
-  }
-}
 
 trait EditorEvent
 

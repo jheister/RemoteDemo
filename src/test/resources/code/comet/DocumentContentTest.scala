@@ -60,6 +60,22 @@ class DocumentContentTest extends FunSpec with MustMatchers {
           |new-3
           |4""".stripMargin)
     }
+
+    it("updates line 0 when split into two") {
+      val content = new DocumentContent
+
+      content.apply(DocumentChange(null, 0, 5, Vector(line("0"), line("1"), line("2"), line("3"), line("4"))))
+      content.apply(DocumentChange(null, 0, 0, Vector(line("new-0"), line("new-0-1"))))
+      content.apply(DocumentChange(null, 1, 1, Vector(line("    new-0-1"))))
+
+      content.toString must be(
+        """new-0
+          |    new-0-1
+          |1
+          |2
+          |3
+          |4""".stripMargin)
+    }
   }
 
   def line(contents: String) = Line(0, Vector(Token(contents, new TextAttributes())))
