@@ -5,32 +5,41 @@ import java.awt.{Font, Color}
 import net.liftweb.common.SimpleActor
 import net.liftweb.http.{CometListener, RenderOut, CometActor}
 import net.liftweb.util.CssSel
+import plugin.File
 
 import scala.xml.NodeSeq
 
 
 class RenderedDocument extends CometActor with CometListener {
-  var contents = DocumentContent()
+  var selected: Option[(FileId, DocumentContent)] = None
 
   override protected def registerWith = DocumentEvents
 
   override def lowPriority = {
-    case replacecmentDoc: DocumentContent => contents = replacecmentDoc; reRender()
+    case Show(id, content) => {
+      selected = Some((id, content))
+      reRender()
+    }
+    case Clear => selected = None; reRender()
     case dc: DocumentChange => {
-      val (updateCmd, newContents) = contents.apply(dc)
+      selected.filter(_._1 == dc.id).foreach {
+        case (id, contents) => {
+          val (updateCmd, newContents) = contents.apply(dc)
 
-      contents = newContents
+          selected = Some((id, newContents))
 
-      if (updateCmd.isDefined) {
-        partialUpdate(updateCmd.get)
-      } else {
-        reRender()
+          if (updateCmd.isDefined) {
+            partialUpdate(updateCmd.get)
+          } else {
+            reRender()
+          }
+        }
       }
     }
   }
 
   override def render = {
-    ".editor *" #> ("*" #> contents.documentContent.map(TokenRender.render(_)))
+    ".editor *" #> ("*" #> selected.map(_._2.documentContent).getOrElse(Vector.empty).map(TokenRender.render(_)))
   }
 }
 
@@ -61,10 +70,8 @@ object TokenRender {
   }
 }
 
-case class Reset(id: FileId, lines: Vector[Line])
-
 case class DocumentChange(id: FileId, start: Int, end: Int, lines: Vector[Line])
 
-case class Show(id: FileId)
+case class Show(id: FileId, file: DocumentContent)
 
 case object Clear

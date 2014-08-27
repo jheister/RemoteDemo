@@ -81,9 +81,7 @@ class WebComponent extends ApplicationComponent {
             override def fileContentLoaded(file: VirtualFile, document: Document): Unit = {
               if (!openedFiles.contains(FileId(file.getName))) {
                 openedFiles = FileId(file.getName) :: openedFiles
-                val listener: NofifyingListener = new NofifyingListener(p1, file, document)
-                listener.reset()
-                FileDocumentManager.getInstance().getDocument(file).addDocumentListener(listener)
+                FileDocumentManager.getInstance().getDocument(file).addDocumentListener(new NofifyingListener(p1, file, document))
               } else {
                 println("Not tracking duplicate opening of file")
               }
@@ -109,7 +107,7 @@ class WebComponent extends ApplicationComponent {
 
 object FileEditorEvents extends FileEditorManagerListener {
   def fileOpened(p1: FileEditorManager, file: VirtualFile) {
-    EditorSectionEventHandler ! FileOpened(FileId(file.getName), EditorFile(file.getName, Vector()))
+    EditorSectionEventHandler ! FileOpened(FileId(file.getName), File(file, p1.getProject))
   }
 
   def fileClosed(p1: FileEditorManager, p2: VirtualFile) {
@@ -119,7 +117,7 @@ object FileEditorEvents extends FileEditorManagerListener {
   def selectionChanged(p1: FileEditorManagerEvent) {
     Option(p1.getNewFile) match {
       case Some(file) => {
-        DocumentEvents ! Show(FileId(file.getName))
+        DocumentEvents ! Show(FileId(file.getName), DocumentContentLoader.load(File(file, p1.getManager.getProject)))
       }
       case None => DocumentEvents ! Clear
     }
@@ -136,10 +134,10 @@ object FileEditorEvents extends FileEditorManagerListener {
 
 trait EditorEvent
 
-case class ContentChanged(id: FileId, file: EditorFile, changedLines: Vector[Line]) extends EditorEvent
-
-case class FileOpened(id: FileId, file: EditorFile) extends EditorEvent
+case class FileOpened(id: FileId, file: File) extends EditorEvent
 
 case class FileClosed(id: FileId, file: String) extends EditorEvent
 
 case class SelectionChanged(newFile: Option[FileId]) extends EditorEvent
+
+case class File(file: VirtualFile, project: Project)

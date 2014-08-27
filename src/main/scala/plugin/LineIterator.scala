@@ -1,6 +1,7 @@
 package plugin
 
 import code.comet._
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.colors.ex.DefaultColorSchemesManager
 import com.intellij.openapi.editor.colors.impl.DefaultColorsScheme
@@ -10,7 +11,7 @@ import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileTypes.FileTypeEditorHighlighterProviders
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.TextRange
+import com.intellij.openapi.util.{Computable, TextRange}
 import com.intellij.openapi.vfs.VirtualFile
 
 import scala.annotation.tailrec
@@ -69,35 +70,51 @@ object TokenIterator {
   }
 }
 
-class NofifyingListener(project: Project, file: VirtualFile, doc: Document) extends DocumentListener {
+case class NoopHighlighterClient(project: Project, document: Document) extends HighlighterClient {
+  override def repaint(start: Int, end: Int): Unit = {}
+
+  override def getDocument: Document = document
+
+  override def getProject: Project = project
+}
+
+class Highlighter(project: Project, file: VirtualFile, document: Document) {
   val highlighterProviders = FileTypeEditorHighlighterProviders.INSTANCE.allForFileType(file.getFileType)
   val highlighter = highlighterProviders.get(0).getEditorHighlighter(project, file.getFileType, file, new DefaultColorsScheme(DefaultColorSchemesManager.getInstance()))
-  highlighter.setText(doc.getText())
-  highlighter.setEditor(new HighlighterClient {
-    override def repaint(start: Int, end: Int): Unit = { /* Not repainting from here since we don't render until highlighter is done */}
+  highlighter.setText(document.getText())
+  highlighter.setEditor(NoopHighlighterClient(project, document))
 
-    override def getDocument: Document = doc
+  def lines() = new LineIterator(TokenIterator(highlighter.createIterator(0), document)).toVector
+}
 
-    override def getProject: Project = project
-  })
+object DocumentContentLoader {
+  def load(file: File) = {
+    val lines = ApplicationManager.getApplication.runReadAction(new Computable[Vector[Line]] {
+      override def compute(): Vector[Line] = {
+        val document: Document = FileDocumentManager.getInstance().getDocument(file.file)
+
+        new Highlighter(file.project, file.file, document).lines()
+      }
+    })
+
+    DocumentContent().resetTo(lines)
+  }
+}
+
+class NofifyingListener(project: Project, file: VirtualFile, doc: Document) extends DocumentListener {
+  val highlighter = new Highlighter(project, file, doc)
 
   override def beforeDocumentChange(event: DocumentEvent): Unit = {}
 
   override def documentChanged(event: DocumentEvent): Unit = {
-    highlighter.documentChanged(event)
+    highlighter.highlighter.documentChanged(event)
     val (start, oldEnd, newEnd) = lineChangeOffsets(event)
 
-    val lines = allLines
+    val lines = highlighter.lines()
     val changedLines: Vector[Line] =
       lines.dropWhile(_.lineNumber < start).takeWhile(_.lineNumber <= newEnd)
 
     DocumentEvents ! DocumentChange(FileId(file.getName), start, oldEnd, changedLines)
-  }
-
-  def allLines = new LineIterator(TokenIterator(highlighter.createIterator(0), doc)).toVector
-
-  def reset() {
-    DocumentEvents ! Reset(FileId(file.getName), allLines)
   }
 
   private def lineChangeOffsets(event: DocumentEvent) = {

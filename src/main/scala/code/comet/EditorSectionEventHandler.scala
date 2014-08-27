@@ -1,6 +1,8 @@
 package code.comet
 
 import com.intellij.openapi.editor.markup.TextAttributes
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
 import net.liftweb.http.ListenerManager
 import net.liftweb.actor.LiftActor
 import plugin._
@@ -19,7 +21,7 @@ object EditorSectionEventHandler extends LiftActor with ListenerManager {
 }
 
 class EditorSection() {
-  private var openFiles: Map[FileId, EditorFile] = Map()
+  private var openFiles: Map[FileId, File] = Map()
   private var selected: Option[FileId] = None
 
   def openFilesList = (openFiles.map {
@@ -33,15 +35,12 @@ class EditorSection() {
       case FileOpened(id, file) => openFiles = openFiles.updated(id, file)
       case FileClosed(id, file) => openFiles = openFiles.filterKeys(_ != id)
       case SelectionChanged(maybeFile) => selected = maybeFile
-      case ContentChanged(id, file, _) => openFiles = openFiles.updated(id, file)
     }
   }
 }
 
-case class OpenFile(file: EditorFile, selected: Boolean) {
-  def lines = file.lines
-
-  def name = file.name
+case class OpenFile(file: File, selected: Boolean) {
+  def name = file.file.getName
 }
 
 case class FileId(name: String)
