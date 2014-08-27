@@ -105,15 +105,15 @@ object FileEditorEvents extends FileEditorManagerListener {
   }
 
   def fileClosed(p1: FileEditorManager, p2: VirtualFile) {
-    EditorSectionEventHandler ! FileClosed(FileId(p2), p2.getName)
+    EditorSectionEventHandler ! FileClosed(FileId(p2))
   }
 
   def selectionChanged(p1: FileEditorManagerEvent) {
     Option(p1.getNewFile) match {
       case Some(file) => {
-        DocumentEvents ! Show(FileId(file), DocumentContentLoader.load(File(file, p1.getManager.getProject)))
+        DocumentEvents ! Selected(FileId(file), DocumentContentLoader.load(File(file, p1.getManager.getProject)))
       }
-      case None => DocumentEvents ! Clear
+      case None => DocumentEvents ! ClearSelected
     }
 
     val maybeFile = Option(p1.getNewFile).map(FileId(_))
@@ -130,7 +130,7 @@ trait EditorEvent
 
 case class FileOpened(id: FileId, file: File) extends EditorEvent
 
-case class FileClosed(id: FileId, file: String) extends EditorEvent
+case class FileClosed(id: FileId) extends EditorEvent
 
 case class SelectionChanged(newFile: Option[FileId]) extends EditorEvent
 

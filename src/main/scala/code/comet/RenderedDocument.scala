@@ -5,7 +5,7 @@ import java.awt.{Font, Color}
 import net.liftweb.common.SimpleActor
 import net.liftweb.http.{CometListener, RenderOut, CometActor}
 import net.liftweb.util.CssSel
-import plugin.File
+import plugin.{FileOpened, File}
 
 import scala.xml.NodeSeq
 
@@ -16,11 +16,11 @@ class RenderedDocument extends CometActor with CometListener {
   override protected def registerWith = DocumentEvents
 
   override def lowPriority = {
-    case Show(id, content) => {
+    case Selected(id, content) => {
       selected = Some((id, content))
       reRender()
     }
-    case Clear => selected = None; reRender()
+    case ClearSelected => selected = None; reRender()
     case dc: DocumentChange => {
       selected.filter(_._1 == dc.id).foreach {
         case (id, contents) => {
@@ -72,6 +72,6 @@ object TokenRender {
 
 case class DocumentChange(id: FileId, start: Int, end: Int, lines: Vector[Line])
 
-case class Show(id: FileId, file: DocumentContent)
+case class Selected(id: FileId, file: DocumentContent)
 
-case object Clear
+case object ClearSelected
