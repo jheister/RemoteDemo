@@ -114,7 +114,7 @@ class NofifyingListener(project: Project, file: VirtualFile, doc: Document) exte
     val changedLines: Vector[Line] =
       lines.dropWhile(_.lineNumber < start).takeWhile(_.lineNumber <= newEnd)
 
-    DocumentEvents ! DocumentChange(FileId(file.getName), start, oldEnd, changedLines)
+    DocumentEvents ! DocumentChange(FileId(file), start, oldEnd, changedLines)
   }
 
   private def lineChangeOffsets(event: DocumentEvent) = {

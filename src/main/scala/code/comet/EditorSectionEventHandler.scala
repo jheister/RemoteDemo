@@ -43,7 +43,7 @@ case class OpenFile(file: File, selected: Boolean) {
   def name = file.file.getName
 }
 
-case class FileId(name: String)
+case class FileId(underlying: VirtualFile)
 
 case class EditorFile(name: String, lines: Vector[Line]) {
   def is(file: EditorFile) = name == file.name

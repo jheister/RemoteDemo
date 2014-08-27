@@ -76,15 +76,9 @@ class WebComponent extends ApplicationComponent {
 
             override def beforeDocumentSaving(document: Document): Unit = {}
 
-            var openedFiles: List[FileId] = Nil
 
             override def fileContentLoaded(file: VirtualFile, document: Document): Unit = {
-              if (!openedFiles.contains(FileId(file.getName))) {
-                openedFiles = FileId(file.getName) :: openedFiles
-                FileDocumentManager.getInstance().getDocument(file).addDocumentListener(new NofifyingListener(p1, file, document))
-              } else {
-                println("Not tracking duplicate opening of file")
-              }
+              document.addDocumentListener(new NofifyingListener(p1, file, document))
             }
 
             override def unsavedDocumentsDropped(): Unit = {}
@@ -107,22 +101,22 @@ class WebComponent extends ApplicationComponent {
 
 object FileEditorEvents extends FileEditorManagerListener {
   def fileOpened(p1: FileEditorManager, file: VirtualFile) {
-    EditorSectionEventHandler ! FileOpened(FileId(file.getName), File(file, p1.getProject))
+    EditorSectionEventHandler ! FileOpened(FileId(file), File(file, p1.getProject))
   }
 
   def fileClosed(p1: FileEditorManager, p2: VirtualFile) {
-    EditorSectionEventHandler ! FileClosed(FileId(p2.getName), p2.getName)
+    EditorSectionEventHandler ! FileClosed(FileId(p2), p2.getName)
   }
 
   def selectionChanged(p1: FileEditorManagerEvent) {
     Option(p1.getNewFile) match {
       case Some(file) => {
-        DocumentEvents ! Show(FileId(file.getName), DocumentContentLoader.load(File(file, p1.getManager.getProject)))
+        DocumentEvents ! Show(FileId(file), DocumentContentLoader.load(File(file, p1.getManager.getProject)))
       }
       case None => DocumentEvents ! Clear
     }
 
-    val maybeFile = Option(p1.getNewFile).map(_.getName).map(FileId(_))
+    val maybeFile = Option(p1.getNewFile).map(FileId(_))
 
     EditorSectionEventHandler ! SelectionChanged(maybeFile)
   }
