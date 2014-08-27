@@ -36,25 +36,31 @@ import com.intellij.openapi.util.TextRange
 import scala.collection.immutable.IndexedSeq
 import scala.collection.immutable.Range.Inclusive
 
+object ServerStarter {
+  def start(port: Int) = {
+    val server = new Server
+    val scc = new SelectChannelConnector
+    scc.setPort(4567)
+    server.setConnectors(Array(scc))
+
+    val context = new WebAppContext()
+    context.setServer(server)
+    context.setWar(context.getClass.getClassLoader.getResource("webapp").toExternalForm)
+
+    val context0: ContextHandler = new ContextHandler();
+    context0.setHandler(context)
+    server.setHandler(context0)
+
+    server.start()
+  }
+}
+
 class WebComponent extends ApplicationComponent {
   def getComponentName: String = "Web Component"
 
   def initComponent() {
     try {
-      val server = new Server
-      val scc = new SelectChannelConnector
-      scc.setPort(4567)
-      server.setConnectors(Array(scc))
-
-      val context = new WebAppContext()
-      context.setServer(server)
-      context.setWar(context.getClass.getClassLoader.getResource("webapp").toExternalForm)
-
-      val context0: ContextHandler = new ContextHandler();
-      context0.setHandler(context)
-      server.setHandler(context0)
-
-      server.start()
+      ServerStarter.start(4567)
 
       val bus = ApplicationManager.getApplication().getMessageBus()
       bus.connect().subscribe(ProjectManager.TOPIC, new ProjectManagerListener {
@@ -67,24 +73,7 @@ class WebComponent extends ApplicationComponent {
         def projectOpened(p1: Project) {
           val connection = p1.getMessageBus.connect()
           connection.subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, FileEditorEvents)
-          connection.subscribe(AppTopics.FILE_DOCUMENT_SYNC, new FileDocumentManagerListener {
-            override def beforeAllDocumentsSaving(): Unit = {}
-
-            override def fileContentReloaded(file: VirtualFile, document: Document): Unit = {}
-
-            override def fileWithNoDocumentChanged(file: VirtualFile): Unit = {}
-
-            override def beforeDocumentSaving(document: Document): Unit = {}
-
-
-            override def fileContentLoaded(file: VirtualFile, document: Document): Unit = {
-              document.addDocumentListener(new NofifyingListener(p1, file, document))
-            }
-
-            override def unsavedDocumentsDropped(): Unit = {}
-
-            override def beforeFileContentReload(file: VirtualFile, document: Document): Unit = {}
-          })
+          connection.subscribe(AppTopics.FILE_DOCUMENT_SYNC, new DocumentInstrumentor(p1))
         }
       })
 
@@ -96,6 +85,24 @@ class WebComponent extends ApplicationComponent {
   def disposeComponent() {}
 }
 
+class DocumentInstrumentor(project: Project) extends FileDocumentManagerListener {
+  override def beforeAllDocumentsSaving(): Unit = {}
+
+  override def fileContentReloaded(file: VirtualFile, document: Document): Unit = {}
+
+  override def fileWithNoDocumentChanged(file: VirtualFile): Unit = {}
+
+  override def beforeDocumentSaving(document: Document): Unit = {}
+
+
+  override def fileContentLoaded(file: VirtualFile, document: Document): Unit = {
+    document.addDocumentListener(new NofifyingListener(project, file, document))
+  }
+
+  override def unsavedDocumentsDropped(): Unit = {}
+
+  override def beforeFileContentReload(file: VirtualFile, document: Document): Unit = {}
+}
 
 
 
@@ -121,17 +128,3 @@ object FileEditorEvents extends FileEditorManagerListener {
     EditorSectionEventHandler ! SelectionChanged(maybeFile)
   }
 }
-
-
-
-
-
-trait EditorEvent
-
-case class FileOpened(id: FileId, file: File) extends EditorEvent
-
-case class FileClosed(id: FileId) extends EditorEvent
-
-case class SelectionChanged(newFile: Option[FileId]) extends EditorEvent
-
-case class File(file: VirtualFile, project: Project)

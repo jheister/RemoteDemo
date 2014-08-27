@@ -33,7 +33,7 @@ class EditorSection() {
   def update(event: EditorEvent) = {
     event match {
       case FileOpened(id, file) => openFiles = openFiles.updated(id, file)
-      case FileClosed(id, file) => openFiles = openFiles.filterKeys(_ != id)
+      case FileClosed(id) => openFiles = openFiles.filterKeys(_ != id)
       case SelectionChanged(maybeFile) => selected = maybeFile
     }
   }

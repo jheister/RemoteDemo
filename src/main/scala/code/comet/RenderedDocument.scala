@@ -2,13 +2,11 @@ package code.comet
 
 import java.awt.{Font, Color}
 
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
 import net.liftweb.common.SimpleActor
 import net.liftweb.http.{CometListener, RenderOut, CometActor}
 import net.liftweb.util.CssSel
-import plugin.{FileOpened, File}
-
-import scala.xml.NodeSeq
-
 
 class RenderedDocument extends CometActor with CometListener {
   var selected: Option[(FileId, DocumentContent)] = None
@@ -69,6 +67,16 @@ object TokenRender {
     "#%02x%02x%02x".format(color.getRed, color.getGreen, color.getBlue)
   }
 }
+
+trait EditorEvent
+
+case class FileOpened(id: FileId, file: File) extends EditorEvent
+
+case class FileClosed(id: FileId) extends EditorEvent
+
+case class SelectionChanged(newFile: Option[FileId]) extends EditorEvent
+
+case class File(file: VirtualFile, project: Project)
 
 case class DocumentChange(id: FileId, start: Int, end: Int, lines: Vector[Line])
 
