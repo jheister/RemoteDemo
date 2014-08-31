@@ -119,7 +119,7 @@ object FileEditorEvents extends FileEditorManagerListener {
   def selectionChanged(p1: FileEditorManagerEvent) {
     Option(p1.getNewFile) match {
       case Some(file) => {
-        DocumentEvents ! Selected(FileId(file), DocumentContent(Random.alphanumeric.take(15).mkString).resetTo(DocumentContentLoader.load(File(file, p1.getManager.getProject))))
+        DocumentEvents ! Selected(FileId(file), DocumentContentLoader.load(File(file, p1.getManager.getProject)))
       }
       case None => DocumentEvents ! ClearSelected
     }

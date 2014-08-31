@@ -8,6 +8,8 @@ import net.liftweb.common.SimpleActor
 import net.liftweb.http.{CometListener, RenderOut, CometActor}
 import net.liftweb.util.CssSel
 
+import scala.util.Random
+
 class RenderedDocument extends CometActor with CometListener {
   var selected: Option[(FileId, DocumentContent)] = None
 
@@ -15,7 +17,7 @@ class RenderedDocument extends CometActor with CometListener {
 
   override def lowPriority = {
     case Selected(id, content) => {
-      selected = Some((id, content))
+      selected = Some((id, DocumentContent(Random.alphanumeric.take(15).mkString).resetTo(content)))
       reRender()
     }
     case ClearSelected => selected = None; reRender()
@@ -76,6 +78,6 @@ case class File(file: VirtualFile, project: Project)
 
 case class DocumentChange(id: FileId, start: Int, end: Int, lines: Vector[Line])
 
-case class Selected(id: FileId, file: DocumentContent)
+case class Selected(id: FileId, content: Vector[Line])
 
 case object ClearSelected
