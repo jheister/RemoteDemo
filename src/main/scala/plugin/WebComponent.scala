@@ -35,12 +35,13 @@ import com.intellij.openapi.util.TextRange
 
 import scala.collection.immutable.IndexedSeq
 import scala.collection.immutable.Range.Inclusive
+import scala.util.Random
 
 object ServerStarter {
   def start(port: Int) = {
     val server = new Server
     val scc = new SelectChannelConnector
-    scc.setPort(4567)
+    scc.setPort(port)
     server.setConnectors(Array(scc))
 
     val context = new WebAppContext()
@@ -60,7 +61,7 @@ class WebComponent extends ApplicationComponent {
 
   def initComponent() {
     try {
-      ServerStarter.start(4567)
+      ServerStarter.start(4568)
 
       val bus = ApplicationManager.getApplication().getMessageBus()
       bus.connect().subscribe(ProjectManager.TOPIC, new ProjectManagerListener {
@@ -118,7 +119,7 @@ object FileEditorEvents extends FileEditorManagerListener {
   def selectionChanged(p1: FileEditorManagerEvent) {
     Option(p1.getNewFile) match {
       case Some(file) => {
-        DocumentEvents ! Selected(FileId(file), DocumentContentLoader.load(File(file, p1.getManager.getProject)))
+        DocumentEvents ! Selected(FileId(file), DocumentContent(Random.alphanumeric.take(15).mkString).resetTo(DocumentContentLoader.load(File(file, p1.getManager.getProject))))
       }
       case None => DocumentEvents ! ClearSelected
     }

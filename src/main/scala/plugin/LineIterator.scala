@@ -97,7 +97,7 @@ object DocumentContentLoader {
       }
     })
 
-    DocumentContent().resetTo(lines)
+    lines
   }
 }
 

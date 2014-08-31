@@ -10,27 +10,33 @@ import scala.util.Random
 import scala.xml.{Elem, NodeSeq}
 import net.liftweb.util.Helpers._
 
-case class DocumentContent(documentContent: Vector[RenderedLine] = Vector.empty) {
-  def apply(change: DocumentChange): (Option[JsCmd], DocumentContent) = {
+case class DocumentContent(id: String, documentContent: Vector[RenderedLine] = Vector.empty) {
+  def apply(change: DocumentChange): (JsCmd, DocumentContent) = {
     val (unchangedHead, remaining) = documentContent.splitAt(change.start)
     val (toRemove, unchangedTail) = remaining.splitAt(change.end - change.start + 1)
     val toAdd: Vector[RenderedLine] = change.lines.map(RenderedLine(Random.alphanumeric.take(15).mkString, _))
 
-    val updateCmd: Option[JsCmd] = if (toRemove.isEmpty) { None } else {
-      val sel: CssSel = "*" #> toAdd.map(TokenRender.render(_))
-      val cmds = toRemove.tail.map(r => JqId(r.id).~>(JqRemove()).cmd) :+ JsCmds.Replace(toRemove.head.id, sel(<span class="code-line"><span class="code-token"></span></span>))
-
-      Some(JsCmds.seqJsToJs(cmds))
+    if (toRemove.isEmpty && !documentContent.isEmpty) {
+      throw new RuntimeException("No lines removed though document has lines: " + documentContent.size)
     }
 
-    (updateCmd, DocumentContent(documentContent = unchangedHead ++ toAdd ++ unchangedTail))
+    val sel: CssSel = "*" #> toAdd.map(TokenRender.render(_))
+    val htmlToAdd = sel(<span class="code-line"><span class="code-token"></span></span>)
+
+    val updateCmd: JsCmd = if (toRemove.isEmpty) {
+      JqJsCmds.JqSetHtml(id, htmlToAdd)
+    } else {
+      JsCmds.seqJsToJs(toRemove.tail.map(r => JqId(r.id).~>(JqRemove()).cmd) :+ JsCmds.Replace(toRemove.head.id, htmlToAdd))
+    }
+
+    (updateCmd, copy(documentContent = unchangedHead ++ toAdd ++ unchangedTail))
   }
 
   override def toString: String = {
     documentContent.map(_.tokens.map(_.value).mkString("")).mkString("\n")
   }
 
-  def resetTo(lines: Vector[Line]) = DocumentContent(lines.map(RenderedLine(Random.alphanumeric.take(15).mkString, _)))
+  def resetTo(lines: Vector[Line]) = copy(documentContent = lines.map(RenderedLine(Random.alphanumeric.take(15).mkString, _)))
 }
 
 case class RenderedLine(id: String, line: Line) {

@@ -25,19 +25,15 @@ class RenderedDocument extends CometActor with CometListener {
           val (updateCmd, newContents) = contents.apply(dc)
 
           selected = Some((id, newContents))
-
-          if (updateCmd.isDefined) {
-            partialUpdate(updateCmd.get)
-          } else {
-            reRender()
-          }
+          partialUpdate(updateCmd)
         }
       }
     }
   }
 
   override def render = {
-    ".editor *" #> ("*" #> selected.map(_._2.documentContent).getOrElse(Vector.empty).map(TokenRender.render(_)))
+    ".editor *" #> ("*" #> selected.map(_._2.documentContent).getOrElse(Vector.empty).map(TokenRender.render(_))) &
+    ".editor [id]" #> selected.map(_._2.id).getOrElse("empty-editor")
   }
 }
 
