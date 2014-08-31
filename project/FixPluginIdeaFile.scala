@@ -1,4 +1,5 @@
 import java.io.{File, PrintStream}
+import org.sbtidea.SbtIdeaPlugin
 import sbt.Keys._
 
 import sbt.{IO, TaskKey}
@@ -8,22 +9,34 @@ import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 object FixPluginIdeaFile {
   val fixIt = TaskKey[File]("fix-it")
+  val genIdeaPlugin = Command.command("gen-idea-plugin") { state =>
+    val extracted = Project.extract(state)
 
-  val settings = fixIt := {
-    val metaInf = baseDirectory.value / ".idea_modules/META-INF"
+    val ignoringUnmanagedLibs: State = extracted.append(Seq(unmanagedBase := baseDirectory.value / "lib"), state)
+    SbtIdeaPlugin.doCommand(ignoringUnmanagedLibs, Seq())
+    extracted.runTask(fixIt, ignoringUnmanagedLibs)
 
-    IO.copyFile(baseDirectory.value / "plugin.xml", metaInf / "plugin.xml")
-
-    val xml = XML.loadFile(".idea_modules/RemoteDemo.iml")
-
-    val out: PrintStream = new PrintStream(".idea_modules/RemoteDemo.iml")
-
-    out.println(Transform(xml))
-
-    out.close()
-
-    new File(".idea_modules/RemoteDemo.iml")
+    state
   }
+
+  val settings = Seq(
+    commands += genIdeaPlugin,
+    fixIt := {
+      val metaInf = baseDirectory.value / ".idea_modules/META-INF"
+
+      IO.copyFile(baseDirectory.value / "plugin.xml", metaInf / "plugin.xml")
+
+      val xml = XML.loadFile(".idea_modules/RemoteDemo.iml")
+
+      val out: PrintStream = new PrintStream(".idea_modules/RemoteDemo.iml")
+
+      out.println(Transform(xml))
+
+      out.close()
+
+      new File(".idea_modules/RemoteDemo.iml")
+    }
+  )
 }
 
 object Transform extends RuleTransformer(RewriteFile)

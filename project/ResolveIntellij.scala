@@ -41,7 +41,7 @@ object ResolveIntellij {
         out.close()
       })
     },
-    unmanagedBase in Compile := intellijDir.value
+    unmanagedBase := intellijDir.value
   )
 
   class TarEntryIterator(tar: TarArchiveInputStream) extends Iterator[TarArchiveEntry] {
