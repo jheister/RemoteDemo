@@ -1,3 +1,6 @@
+import sbtassembly.Plugin.{MappingSet, MergeStrategy}
+import sbtassembly.Plugin.AssemblyKeys._
+
 name := "RemoteDemo"
 
 version := "0.0.1"
@@ -16,7 +19,7 @@ scalacOptions ++= Seq("-deprecation", "-unchecked")
 libraryDependencies ++= {
   val liftVersion = "2.6-M4"
   Seq(
-    "net.liftweb"       %% "lift-webkit"        % liftVersion        % "compile",
+    ("net.liftweb"       %% "lift-webkit"        % liftVersion).exclude("javax.mail", "mail"),
     "net.liftmodules"   %% "lift-jquery-module_2.6" % "2.8",
     "org.eclipse.jetty" % "jetty-webapp"        % "8.1.7.v20120910",
     "org.eclipse.jetty" % "jetty-plus"          % "8.1.7.v20120910",
@@ -29,3 +32,26 @@ libraryDependencies ++= {
 FixPluginIdeaFile.settings
 
 ResolveIntellij.settings
+
+sbtassembly.Plugin.assemblySettings
+
+mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) =>
+{
+  case "META-INF/ECLIPSEF.RSA"     => MergeStrategy.discard
+  case "META-INF/eclipse.inf"     => MergeStrategy.discard
+  case "META-INF/mailcap"     => MergeStrategy.first
+  case "META-INF/mimetypes.default" => MergeStrategy.first
+  case "plugin.properties" => MergeStrategy.concat
+  case "scala/io/Position$.class" => MergeStrategy.first
+  case "scala/io/Position.class" => MergeStrategy.first
+  case x => old(x)
+}
+}
+
+fullClasspath in assembly := { (fullClasspath in Compile).value.filterNot(_.data.getAbsolutePath.contains(unmanagedBase.value.getAbsolutePath)) }
+
+net.virtualvoid.sbt.graph.Plugin.graphSettings
+
+assembledMappings in assembly ++= Seq(
+  MappingSet(None, Vector((baseDirectory.value / "plugin.xml") -> "META-INF/plugin.xml"))
+)
