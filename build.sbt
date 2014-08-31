@@ -27,3 +27,5 @@ libraryDependencies ++= {
 }
 
 FixPluginIdeaFile.settings
+
+ResolveIntellij.settings
