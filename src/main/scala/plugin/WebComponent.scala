@@ -80,10 +80,13 @@ class WebComponent extends ApplicationComponent {
                 override def selectionChanged(e: SelectionEvent): Unit = {
                   val doc: Document = e.getEditor.getDocument
 
-                  val startLine: Int = doc.getLineNumber(e.getNewRange.getStartOffset)
-                  val endLine: Int = doc.getLineNumber(e.getNewRange.getEndOffset)
-
-                  DocumentEvents ! LinesSelected(startLine, endLine)
+                  if (e.getNewRange.getLength != 0) {
+                    val startLine: Int = doc.getLineNumber(e.getNewRange.getStartOffset)
+                    val endLine: Int = doc.getLineNumber(e.getNewRange.getEndOffset)
+                    DocumentEvents ! LinesSelected(startLine, endLine)
+                  } else {
+                    DocumentEvents ! LineSelectionCleared
+                  }
                 }
               })
             }

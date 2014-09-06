@@ -39,16 +39,25 @@ class RenderedDocument extends CometActor with CometListener {
     }
     case selection: LinesSelected => {
       selected.map(_._2.documentContent).foreach {lines =>
-        val deselect = textSelection.map { oldSelection =>
-          oldSelection.pickFrom(lines).map(line => JqId(line.id).~>(JqRemoveClass("selection")).cmd)
-        }.getOrElse(Vector.empty)
-
         val select = selection.pickFrom(lines).map(line => JqId(line.id).~>(JqAddClass("selection")).cmd)
 
-        textSelection = Some(selection)
+        partialUpdate(JsCmds.seqJsToJs(deselect().toSeq ++ select))
 
-        partialUpdate(JsCmds.seqJsToJs(deselect ++ select))
+        textSelection = Some(selection)
       }
+    }
+
+    case LineSelectionCleared => {
+      deselect().foreach(cmd => partialUpdate(cmd))
+      textSelection = None
+    }
+  }
+
+  def deselect() = {
+    selected.map(_._2.documentContent).map { lines =>
+      JsCmds.seqJsToJs(textSelection.map { oldSelection =>
+        oldSelection.pickFrom(lines).map(line => JqId(line.id).~>(JqRemoveClass("selection")).cmd)
+      }.getOrElse(Vector.empty))
     }
   }
 
@@ -113,3 +122,5 @@ case class LinesSelected(startLine: Int, endLine: Int) {
   def pickFrom[T](lines: Vector[T]): Vector[T] =
     lines.drop(startLine).take(endLine - startLine + 1)
 }
+
+case object LineSelectionCleared
