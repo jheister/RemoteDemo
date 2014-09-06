@@ -14,7 +14,7 @@ case class DocumentContent(id: String, documentContent: Vector[RenderedLine] = V
   def apply(change: DocumentChange): (JsCmd, DocumentContent) = {
     val (unchangedHead, remaining) = documentContent.splitAt(change.start)
     val (toRemove, unchangedTail) = remaining.splitAt(change.end - change.start + 1)
-    val toAdd: Vector[RenderedLine] = change.lines.map(RenderedLine(Random.alphanumeric.take(15).mkString, _))
+    val toAdd: Vector[RenderedLine] = forRendering(change.lines)
 
     if (toRemove.isEmpty && !documentContent.isEmpty) {
       throw new RuntimeException("No lines removed though document has lines: " + documentContent.size)
@@ -36,16 +36,31 @@ case class DocumentContent(id: String, documentContent: Vector[RenderedLine] = V
     documentContent.map(_.tokens.map(_.value).mkString("")).mkString("\n")
   }
 
-  def resetTo(lines: Vector[Line]) = copy(documentContent = lines.map(RenderedLine(Random.alphanumeric.take(15).mkString, _)))
-}
+  def resetTo(lines: Vector[Line]) = copy(documentContent = forRendering(lines))
 
-case class RenderedLine(id: String, line: Line) {
-  def tokens = {
-    val meaningful = line.tokens.filterNot(_.value.isEmpty)
-    if (meaningful.isEmpty) {
-      Vector(Token(" ", new TextAttributes(), 0))
-    } else {
-      meaningful
+  private def forRendering(lines: Vector[Line]) = {
+    lines.map { line =>
+      val meaningful = line.tokens.filterNot(_.value.isEmpty)
+
+      val tokens = if (meaningful.isEmpty) {
+        Vector(Token(" ", new TextAttributes(), 0))
+      } else {
+        meaningful
+      }
+
+      RenderedLine(Random.alphanumeric.take(15).mkString, tokens.map(RenderedToken(Random.alphanumeric.take(15).mkString, _)))
     }
   }
 }
+
+case class RenderedToken(id: String, token: Token) {
+  def getFontType = token.attributes.getFontType
+
+  def getBackgroundColor = token.attributes.getBackgroundColor
+
+  def getForegroundColor = token.attributes.getForegroundColor
+
+  def value = token.value
+}
+
+case class RenderedLine(id: String, tokens: Vector[RenderedToken])

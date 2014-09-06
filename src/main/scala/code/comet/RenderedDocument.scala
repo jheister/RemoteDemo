@@ -83,11 +83,12 @@ object TokenRender {
       ".code-token" #> line.tokens.map(t => render(t))
     }
 
-  def render(token: Token) = {
+  def render(token: RenderedToken) = {
     "* *" #> token.value &
-      "* [style+]" #> Option(token.attributes.getForegroundColor).map(toHexString).map("color:%s;".format(_)).getOrElse("") &
-      "* [style+]" #> Option(token.attributes.getBackgroundColor).map(toHexString).map("background-color:%s;".format(_)).getOrElse("") &
-      "* [style+]" #> Option(token.attributes.getFontType).map(toWeight).getOrElse("")
+      "* [id]" #> token.id &
+      "* [style+]" #> Option(token.getForegroundColor).map(toHexString).map("color:%s;".format(_)).getOrElse("") &
+      "* [style+]" #> Option(token.getBackgroundColor).map(toHexString).map("background-color:%s;".format(_)).getOrElse("") &
+      "* [style+]" #> Option(token.getFontType).map(toWeight).getOrElse("")
   }
 
   private def toWeight(id: Int) = id match {
