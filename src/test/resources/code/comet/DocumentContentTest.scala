@@ -89,5 +89,5 @@ class DocumentContentTest extends FunSpec with MustMatchers {
 
   def blankContent = DocumentContent("")
 
-  def line(contents: String) = Line(0, Vector(Token(contents, new TextAttributes())))
+  def line(contents: String) = Line(0, Vector(Token(contents, new TextAttributes(), 0)))
 }

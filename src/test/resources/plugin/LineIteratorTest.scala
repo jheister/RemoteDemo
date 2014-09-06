@@ -8,15 +8,15 @@ class LineIteratorTest extends FunSpec with MustMatchers {
   describe("Line Iterator") {
     it("Groups sequentially provided tokens into lines") {
       val tokens = List(
-        (0, Token("public", new TextAttributes())),
-        (0, Token(" ", new TextAttributes())),
-        (0, Token("class", new TextAttributes())),
-        (0, Token(" ", new TextAttributes())),
-        (0, Token("Blah", new TextAttributes())),
-        (0, Token(" ", new TextAttributes())),
-        (0, Token("{", new TextAttributes())),
-        (1, Token("    ", new TextAttributes())),
-        (1, Token("public", new TextAttributes()))
+        (0, Token("public", new TextAttributes(), 0)),
+        (0, Token(" ", new TextAttributes(), 0)),
+        (0, Token("class", new TextAttributes(), 0)),
+        (0, Token(" ", new TextAttributes(), 0)),
+        (0, Token("Blah", new TextAttributes(), 0)),
+        (0, Token(" ", new TextAttributes(), 0)),
+        (0, Token("{", new TextAttributes(), 0)),
+        (1, Token("    ", new TextAttributes(), 0)),
+        (1, Token("public", new TextAttributes(), 0))
       )
 
       rendered(new LineIterator(tokens.iterator)) must be(

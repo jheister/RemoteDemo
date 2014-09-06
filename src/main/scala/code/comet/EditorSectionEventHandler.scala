@@ -51,6 +51,10 @@ case class EditorFile(name: String, lines: Vector[Line]) {
 
 case class Line(lineNumber: Int, tokens: Vector[Token])
 
-case class Token(value: String, attributes: TextAttributes) {
-  def splitAcrossLines: Vector[Token] =  value.split("\n", -1).map(Token(_, attributes)).toVector
+case class Token(value: String, attributes: TextAttributes, start: Int) {
+  def splitAcrossLines: Vector[Token] = {
+    (value.split("\n", -1).toList match {
+      case first :: rest => Token(first, attributes, start) :: rest.map(Token(_, attributes, 0))
+    }).toVector
+  }
 }

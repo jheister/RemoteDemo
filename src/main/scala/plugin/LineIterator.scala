@@ -41,11 +41,16 @@ class LineIterator(underlying: Iterator[(Int, Token)]) extends Iterator[Line] {
 class BasicTokenIterator(iterator: HighlighterIterator, doc: Document) extends Iterator[(Int, Int, Token)] {
   override def hasNext: Boolean = !iterator.atEnd()
 
-  override def next() = {    val text: String = doc.getText(new TextRange(iterator.getStart, iterator.getEnd))
+  override def next() = {
+    val text: String = doc.getText(new TextRange(iterator.getStart, iterator.getEnd))
 
-    val data = (doc.getLineNumber(iterator.getStart),
+    val startingLine: Int = doc.getLineNumber(iterator.getStart)
+
+    val startOnLine = iterator.getStart - doc.getLineStartOffset(startingLine)
+
+    val data = (startingLine,
       doc.getLineNumber(iterator.getEnd),
-      Token(text, iterator.getTextAttributes))
+      Token(text, iterator.getTextAttributes, startOnLine))
     iterator.advance()
 
     data

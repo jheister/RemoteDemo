@@ -118,9 +118,11 @@ case class Selected(id: FileId, content: Vector[Line])
 
 case object ClearSelected
 
-case class LinesSelected(startLine: Int, endLine: Int) {
+case class TextPosition(line: Int, pos: Int)
+
+case class LinesSelected(start: TextPosition, end: TextPosition) {
   def pickFrom[T](lines: Vector[T]): Vector[T] =
-    lines.drop(startLine).take(endLine - startLine + 1)
+    lines.drop(start.line).take(end.line - start.line + 1)
 }
 
 case object LineSelectionCleared

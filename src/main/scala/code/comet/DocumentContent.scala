@@ -43,7 +43,7 @@ case class RenderedLine(id: String, line: Line) {
   def tokens = {
     val meaningful = line.tokens.filterNot(_.value.isEmpty)
     if (meaningful.isEmpty) {
-      Vector(Token(" ", new TextAttributes()))
+      Vector(Token(" ", new TextAttributes(), 0))
     } else {
       meaningful
     }

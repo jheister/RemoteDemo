@@ -7,7 +7,7 @@ import org.scalatest.{MustMatchers, FunSpec, FunSuite}
 class TokenRenderTest extends FunSpec with MustMatchers {
   describe("Token rendering") {
     it("renders multiple tokens in one line") {
-      val line = RenderedLine("line-1", Line(0, Vector(Token("hello", new TextAttributes()), Token("world", new TextAttributes()))))
+      val line = RenderedLine("line-1", Line(0, Vector(Token("hello", new TextAttributes(), 0), Token("world", new TextAttributes(), 0))))
 
       val html = TokenRender.render(line)(<span class="code-line"><span class="code-token"></span></span>)
 
@@ -17,8 +17,8 @@ class TokenRenderTest extends FunSpec with MustMatchers {
     }
 
     it("renders multiple lines") {
-      val line1 = RenderedLine("line-1", Line(0, Vector(Token("hello", new TextAttributes()), Token("world", new TextAttributes()))))
-      val line2 = RenderedLine("line-2", Line(0, Vector(Token("another", new TextAttributes()), Token("line", new TextAttributes()))))
+      val line1 = RenderedLine("line-1", Line(0, Vector(Token("hello", new TextAttributes(), 0), Token("world", new TextAttributes(), 0))))
+      val line2 = RenderedLine("line-2", Line(0, Vector(Token("another", new TextAttributes(), 0), Token("line", new TextAttributes(), 0))))
 
       import net.liftweb.util.Helpers._
 
