@@ -5,9 +5,9 @@ import java.util
 
 import com.intellij.AppTopics
 import com.intellij.openapi.components.ApplicationComponent
-import com.intellij.openapi.editor.Document
+import com.intellij.openapi.editor.{EditorFactory, Document}
 import com.intellij.openapi.editor.colors.ColorKey
-import com.intellij.openapi.editor.event.{DocumentEvent, DocumentListener}
+import com.intellij.openapi.editor.event._
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.fileEditor.impl.FileDocumentManagerImpl
 import com.intellij.psi.{PsiFile, PsiDocumentManager}
@@ -29,7 +29,6 @@ import com.intellij.openapi.editor.colors.impl.DefaultColorsScheme
 import com.intellij.openapi.editor.colors.ex.DefaultColorSchemesManager
 import com.intellij.openapi.editor.ex.util.LexerEditorHighlighter
 import com.intellij.openapi.editor.highlighter.{EditorHighlighter, HighlighterIterator, HighlighterClient}
-import com.intellij.openapi.editor.Document
 
 import com.intellij.openapi.util.TextRange
 
@@ -75,6 +74,22 @@ class WebComponent extends ApplicationComponent {
           val connection = p1.getMessageBus.connect()
           connection.subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, FileEditorEvents)
           connection.subscribe(AppTopics.FILE_DOCUMENT_SYNC, new DocumentInstrumentor(p1))
+          EditorFactory.getInstance().addEditorFactoryListener(new EditorFactoryListener {
+            override def editorCreated(event: EditorFactoryEvent): Unit = {
+              event.getEditor.getSelectionModel.addSelectionListener(new SelectionListener {
+                override def selectionChanged(e: SelectionEvent): Unit = {
+                  val doc: Document = e.getEditor.getDocument
+
+                  val startLine: Int = doc.getLineNumber(e.getNewRange.getStartOffset)
+                  val endLine: Int = doc.getLineNumber(e.getNewRange.getEndOffset)
+
+                  DocumentEvents ! LinesSelected(startLine, endLine)
+                }
+              })
+            }
+
+            override def editorReleased(event: EditorFactoryEvent): Unit = {}
+          }, p1)
         }
       })
 

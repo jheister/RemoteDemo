@@ -5,6 +5,10 @@ import java.awt.{Font, Color}
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import net.liftweb.common.SimpleActor
+import net.liftweb.http.js.JsCmds.Run
+import net.liftweb.http.js.{JsCmds, JsCmd}
+import net.liftweb.http.js.jquery.JqJE.JqId
+import net.liftweb.http.js.jquery.JqJsCmds
 import net.liftweb.http.{CometListener, RenderOut, CometActor}
 import net.liftweb.util.CssSel
 
@@ -29,6 +33,11 @@ class RenderedDocument extends CometActor with CometListener {
           selected = Some((id, newContents))
           partialUpdate(updateCmd)
         }
+      }
+    }
+    case LinesSelected(start, end) => {
+      selected.map(_._2.documentContent).foreach {lines =>
+        partialUpdate(Run("selectLine('#%s', '#%s');".format(lines(start).id, lines(end).id)))
       }
     }
   }
@@ -81,3 +90,5 @@ case class DocumentChange(id: FileId, start: Int, end: Int, lines: Vector[Line])
 case class Selected(id: FileId, content: Vector[Line])
 
 case object ClearSelected
+
+case class LinesSelected(startLine: Int, endLine: Int)
