@@ -6,8 +6,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import net.liftweb.common.SimpleActor
 import net.liftweb.http.js.JsCmds.Run
-import net.liftweb.http.js.{JsCmds, JsCmd}
-import net.liftweb.http.js.jquery.JqJE.JqId
+import net.liftweb.http.js._
+import net.liftweb.http.js.jquery.JqJE.{JqAttr, JqId}
 import net.liftweb.http.js.jquery.JqJsCmds
 import net.liftweb.http.{CometListener, RenderOut, CometActor}
 import net.liftweb.util.CssSel
@@ -16,6 +16,8 @@ import scala.util.Random
 
 class RenderedDocument extends CometActor with CometListener {
   var selected: Option[(FileId, DocumentContent)] = None
+
+  var textSelection: Option[LinesSelected] = None
 
   override protected def registerWith = DocumentEvents
 
@@ -35,11 +37,27 @@ class RenderedDocument extends CometActor with CometListener {
         }
       }
     }
-    case LinesSelected(start, end) => {
+    case selection: LinesSelected => {
       selected.map(_._2.documentContent).foreach {lines =>
-        partialUpdate(Run("selectLine('#%s', '#%s');".format(lines(start).id, lines(end).id)))
+        val deselect = textSelection.map { oldSelection =>
+          oldSelection.pickFrom(lines).map(line => JqId(line.id).~>(JqRemoveClass("selection")).cmd)
+        }.getOrElse(Vector.empty)
+
+        val select = selection.pickFrom(lines).map(line => JqId(line.id).~>(JqAddClass("selection")).cmd)
+
+        textSelection = Some(selection)
+
+        partialUpdate(JsCmds.seqJsToJs(deselect ++ select))
       }
     }
+  }
+
+  case class JqAddClass(clazz: JsExp) extends JsExp with JsMember {
+    override def toJsCmd = "addClass(" + clazz.toJsCmd + ")"
+  }
+
+  case class JqRemoveClass(clazz: JsExp) extends JsExp with JsMember {
+    override def toJsCmd = "removeClass(" + clazz.toJsCmd + ")"
   }
 
   override def render = {
@@ -91,4 +109,7 @@ case class Selected(id: FileId, content: Vector[Line])
 
 case object ClearSelected
 
-case class LinesSelected(startLine: Int, endLine: Int)
+case class LinesSelected(startLine: Int, endLine: Int) {
+  def pickFrom[T](lines: Vector[T]): Vector[T] =
+    lines.drop(startLine).take(endLine - startLine + 1)
+}

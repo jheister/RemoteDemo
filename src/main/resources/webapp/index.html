@@ -9,29 +9,7 @@
         </div>
       </span>
 
-      <script>
-        function selectLine(startLine, endLine) {
-          var endElem = $(endLine),
-              startElem = $(startLine),
-              pos = startElem.position(),
-              top = pos.top,
-              left = pos.left,
-              width = (endElem.position().left - startElem.position().left) + endElem.width()
-              height = (endElem.position().top - startElem.position().top) + endElem.height(),
-              highlight = $('#highlight')[0];
-
-          highlight.style.position = 'absolute';
-          highlight.style.top = top + "px";
-          highlight.style.left = left + "px";
-          highlight.style.width = width + "px";
-          highlight.style.height = height + "px";
-          highlight.style.zIndex = 10;
-          highlight.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        }
-      </script>
-
       <span class="lift:comet?type=RenderedDocument">
-        <div id="highlight"></div>
         <pre><code class="editor"><span class="code-line"><span class="code-token"></span></span></code></pre>
       </span>
     </div>
