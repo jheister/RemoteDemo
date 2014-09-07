@@ -14,7 +14,7 @@ case class DocumentContent(id: String, documentContent: Vector[RenderedLine] = V
   def apply(change: DocumentChange): (JsCmd, DocumentContent) = {
     val (unchangedHead, remaining) = documentContent.splitAt(change.start)
     val (toRemove, unchangedTail) = remaining.splitAt(change.end - change.start + 1)
-    val toAdd: Vector[RenderedLine] = forRendering(change.lines)
+    val toAdd: Vector[RenderedLine] = DocumentContent.forRendering(change.lines)
 
     if (toRemove.isEmpty && !documentContent.isEmpty) {
       throw new RuntimeException("No lines removed though document has lines: " + documentContent.size)
@@ -35,10 +35,10 @@ case class DocumentContent(id: String, documentContent: Vector[RenderedLine] = V
   override def toString: String = {
     documentContent.map(_.tokens.map(_.value).mkString("")).mkString("\n")
   }
+}
 
-  def resetTo(lines: Vector[Line]) = copy(documentContent = forRendering(lines))
-
-  private def forRendering(lines: Vector[Line]) = {
+object DocumentContent {
+  def forRendering(lines: Vector[Line]) = {
     lines.map { line =>
       val meaningful = line.tokens.filterNot(_.value.isEmpty)
 

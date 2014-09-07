@@ -23,7 +23,7 @@ class RenderedDocument extends CometActor with CometListener {
 
   override def lowPriority = {
     case Selected(id, content) => {
-      selected = Some((id, DocumentContent(Random.alphanumeric.take(15).mkString).resetTo(content)))
+      selected = Some((id, DocumentContent(Random.alphanumeric.take(15).mkString, DocumentContent.forRendering(content))))
       reRender()
     }
     case ClearSelected => selected = None; reRender()
