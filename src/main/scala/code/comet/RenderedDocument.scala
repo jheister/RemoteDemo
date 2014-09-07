@@ -16,7 +16,6 @@ import scala.util.Random
 
 class RenderedDocument extends CometActor with CometListener {
   var selected: Option[(FileId, DocumentContent)] = None
-
   var textSelection: Vector[String] = Vector()
 
   override protected def registerWith = DocumentEvents
@@ -38,36 +37,20 @@ class RenderedDocument extends CometActor with CometListener {
       }
     }
     case selection: TextSelected => {
-      selected.map(_._2.documentContent).foreach {lines =>
-        val newSelected = selection.pickFrom(lines)
-        val toDeselect = textSelection.filterNot(newSelected.contains)
-        val toSelect = newSelected.filterNot(textSelection.contains)
-
-        textSelection = newSelected
-
-        partialUpdate(JsCmds.seqJsToJs(
-          toSelect.map(select)
-        ++ toDeselect.map(deselect)))
-      }
+      selected.foreach(c => {
+        val (cmd, content) = c._2.apply(selection)
+        selected = Some(c._1, content)
+        partialUpdate(cmd)
+      })
     }
 
     case TextSelectionCleared => {
-      val deselectCmd = JsCmds.seqJsToJs(textSelection.map(deselect))
-      partialUpdate(deselectCmd)
-      textSelection = Vector()
+      selected.foreach(c => {
+        val (cmd, content) = c._2.apply(TextSelectionCleared)
+        selected = Some(c._1, content)
+        partialUpdate(cmd)
+      })
     }
-  }
-
-  def select(id: String) = JqId(id).~>(JqAddClass("selection")).cmd
-
-  def deselect(id: String) = JqId(id).~>(JqRemoveClass("selection")).cmd
-
-  case class JqAddClass(clazz: JsExp) extends JsExp with JsMember {
-    override def toJsCmd = "addClass(" + clazz.toJsCmd + ")"
-  }
-
-  case class JqRemoveClass(clazz: JsExp) extends JsExp with JsMember {
-    override def toJsCmd = "removeClass(" + clazz.toJsCmd + ")"
   }
 
   override def render = {
@@ -114,7 +97,7 @@ case class SelectionChanged(newFile: Option[FileId]) extends EditorEvent
 
 case class File(file: VirtualFile, project: Project)
 
-case class DocumentChange(id: FileId, start: Int, end: Int, lines: Vector[Line])
+case class DocumentChange(id: FileId, start: Int, end: Int, lines: Vector[Line]) extends EditorEvent
 
 case class Selected(id: FileId, content: Vector[Line])
 
@@ -122,7 +105,7 @@ case object ClearSelected
 
 case class TextPosition(line: Int, pos: Int)
 
-case class TextSelected(start: TextPosition, end: TextPosition) {
+case class TextSelected(start: TextPosition, end: TextPosition) extends EditorEvent {
   def pickFrom(lines: Vector[RenderedLine]): Vector[String] = {
     val selectable = lines.drop(start.line).take(end.line - start.line + 1).map(_.tokens).toList
 
@@ -138,4 +121,4 @@ case class TextSelected(start: TextPosition, end: TextPosition) {
   }
 }
 
-case object TextSelectionCleared
+case object TextSelectionCleared extends EditorEvent
