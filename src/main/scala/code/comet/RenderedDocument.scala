@@ -17,7 +17,7 @@ import scala.util.Random
 class RenderedDocument extends CometActor with CometListener {
   var selected: Option[(FileId, DocumentContent)] = None
 
-  var textSelection: Option[LinesSelected] = None
+  var textSelection: Vector[String] = Vector()
 
   override protected def registerWith = DocumentEvents
 
@@ -37,29 +37,30 @@ class RenderedDocument extends CometActor with CometListener {
         }
       }
     }
-    case selection: LinesSelected => {
+    case selection: TextSelected => {
       selected.map(_._2.documentContent).foreach {lines =>
-        val select = selection.pickFrom(lines).map(line => JqId(line.id).~>(JqAddClass("selection")).cmd)
+        val newSelected = selection.pickFrom(lines)
+        val toDeselect = textSelection.filterNot(newSelected.contains)
+        val toSelect = newSelected.filterNot(textSelection.contains)
 
-        partialUpdate(JsCmds.seqJsToJs(deselect().toSeq ++ select))
+        textSelection = newSelected
 
-        textSelection = Some(selection)
+        partialUpdate(JsCmds.seqJsToJs(
+          toSelect.map(select)
+        ++ toDeselect.map(deselect)))
       }
     }
 
-    case LineSelectionCleared => {
-      deselect().foreach(cmd => partialUpdate(cmd))
-      textSelection = None
+    case TextSelectionCleared => {
+      val deselectCmd = JsCmds.seqJsToJs(textSelection.map(deselect))
+      partialUpdate(deselectCmd)
+      textSelection = Vector()
     }
   }
 
-  def deselect() = {
-    selected.map(_._2.documentContent).map { lines =>
-      JsCmds.seqJsToJs(textSelection.map { oldSelection =>
-        oldSelection.pickFrom(lines).map(line => JqId(line.id).~>(JqRemoveClass("selection")).cmd)
-      }.getOrElse(Vector.empty))
-    }
-  }
+  def select(id: String) = JqId(id).~>(JqAddClass("selection")).cmd
+
+  def deselect(id: String) = JqId(id).~>(JqRemoveClass("selection")).cmd
 
   case class JqAddClass(clazz: JsExp) extends JsExp with JsMember {
     override def toJsCmd = "addClass(" + clazz.toJsCmd + ")"
@@ -121,9 +122,20 @@ case object ClearSelected
 
 case class TextPosition(line: Int, pos: Int)
 
-case class LinesSelected(start: TextPosition, end: TextPosition) {
-  def pickFrom[T](lines: Vector[T]): Vector[T] =
-    lines.drop(start.line).take(end.line - start.line + 1)
+case class TextSelected(start: TextPosition, end: TextPosition) {
+  def pickFrom(lines: Vector[RenderedLine]): Vector[String] = {
+    val selectable = lines.drop(start.line).take(end.line - start.line + 1).map(_.tokens).toList
+
+    val filteredStart = filterHead(selectable, _.dropWhile(_.token.start < start.pos))
+    val filteredEnd = filterHead(filteredStart.reverse, _.takeWhile(t => (t.token.start + t.value.length) <= end.pos)).reverse
+
+    filteredEnd.flatMap(_.map(_.id)).toVector
+  }
+
+  private def filterHead(list: List[Vector[RenderedToken]], f: Vector[RenderedToken] => Vector[RenderedToken]) = {
+    val (head :: tail) = list
+    f(head) :: tail
+  }
 }
 
-case object LineSelectionCleared
+case object TextSelectionCleared

@@ -4,3 +4,4 @@ project/target
 .idea
 intellij
 .idea_modules
+console.devmode.log

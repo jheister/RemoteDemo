@@ -87,9 +87,9 @@ class WebComponent extends ApplicationComponent {
                     val startPos = e.getNewRange.getStartOffset - doc.getLineStartOffset(startLine)
                     val endPos = e.getNewRange.getEndOffset - doc.getLineStartOffset(endLine)
 
-                    DocumentEvents ! LinesSelected(TextPosition(startLine, startPos), TextPosition(endLine, endPos))
+                    DocumentEvents ! TextSelected(TextPosition(startLine, startPos), TextPosition(endLine, endPos))
                   } else {
-                    DocumentEvents ! LineSelectionCleared
+                    DocumentEvents ! TextSelectionCleared
                   }
                 }
               })
