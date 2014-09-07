@@ -16,7 +16,6 @@ import scala.util.Random
 
 class RenderedDocument extends CometActor with CometListener {
   var selected: Option[(FileId, DocumentContent)] = None
-  var textSelection: Vector[String] = Vector()
 
   override protected def registerWith = DocumentEvents
 
