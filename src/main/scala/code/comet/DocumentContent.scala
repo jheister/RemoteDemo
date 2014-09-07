@@ -10,10 +10,16 @@ import scala.util.Random
 import scala.xml.{Elem, NodeSeq}
 import net.liftweb.util.Helpers._
 
-case class DocumentContent(id: String,
-                           documentContent: Vector[RenderedLine] = Vector.empty,
-                           textSelection: Vector[String] = Vector.empty) {
-  def apply(evt: EditorEvent): (JsCmd, DocumentContent) = evt match {
+class DocumentContent() {
+  private val id = Random.alphanumeric.take(15).mkString
+  private var documentContent: Vector[RenderedLine] = Vector.empty
+  private var textSelection: Vector[String] = Vector.empty
+
+  def lines() = documentContent
+
+  def theId() = id
+
+  def apply(evt: EditorEvent): JsCmd = evt match {
     case change: DocumentChange => {
       val (unchangedHead, remaining) = documentContent.splitAt(change.start)
       val (toRemove, unchangedTail) = remaining.splitAt(change.end - change.start + 1)
@@ -32,20 +38,27 @@ case class DocumentContent(id: String,
         JsCmds.seqJsToJs(toRemove.tail.map(r => JqId(r.id).~>(JqRemove()).cmd) :+ JsCmds.Replace(toRemove.head.id, htmlToAdd))
       }
 
-      (updateCmd, copy(documentContent = unchangedHead ++ toAdd ++ unchangedTail))
+      documentContent = unchangedHead ++ toAdd ++ unchangedTail
+      updateCmd
     }
     case selection: TextSelected => {
       val newSelected = selection.pickFrom(documentContent)
       val toDeselect = textSelection.filterNot(newSelected.contains)
       val toSelect = newSelected.filterNot(textSelection.contains)
 
-      (JsCmds.seqJsToJs(toSelect.map(select) ++ toDeselect.map(deselect)),
-        copy(textSelection = newSelected))
+      textSelection = newSelected
+      JsCmds.seqJsToJs(toSelect.map(select) ++ toDeselect.map(deselect))
     }
     case TextSelectionCleared => {
-      (JsCmds.seqJsToJs(textSelection.map(deselect)),
-        copy(textSelection = Vector()))
+      val cmd = JsCmds.seqJsToJs(textSelection.map(deselect))
+      textSelection = Vector()
+      cmd
     }
+  }
+
+  def resetTo(content: Vector[RenderedLine]) = {
+    documentContent = content
+    this
   }
 
   override def toString: String = {

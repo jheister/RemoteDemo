@@ -21,40 +21,40 @@ class RenderedDocument extends CometActor with CometListener {
 
   override def lowPriority = {
     case Selected(id, content) => {
-      selected = Some((id, DocumentContent(Random.alphanumeric.take(15).mkString, DocumentContent.forRendering(content))))
+      val newContent: DocumentContent = new DocumentContent
+
+      newContent.resetTo(DocumentContent.forRendering(content))
+
+      selected = Some((id, newContent))
       reRender()
     }
     case ClearSelected => selected = None; reRender()
     case dc: DocumentChange => {
       selected.filter(_._1 == dc.id).foreach {
         case (id, contents) => {
-          val (updateCmd, newContents) = contents.apply(dc)
-
-          selected = Some((id, newContents))
-          partialUpdate(updateCmd)
+          val cmd = contents.apply(dc)
+          partialUpdate(cmd)
         }
       }
     }
     case selection: TextSelected => {
       selected.foreach(c => {
-        val (cmd, content) = c._2.apply(selection)
-        selected = Some(c._1, content)
+        val cmd = c._2.apply(selection)
         partialUpdate(cmd)
       })
     }
 
     case TextSelectionCleared => {
       selected.foreach(c => {
-        val (cmd, content) = c._2.apply(TextSelectionCleared)
-        selected = Some(c._1, content)
+        val cmd = c._2.apply(TextSelectionCleared)
         partialUpdate(cmd)
       })
     }
   }
 
   override def render = {
-    ".editor *" #> ("*" #> selected.map(_._2.documentContent).getOrElse(Vector.empty).map(TokenRender.render(_))) &
-    ".editor [id]" #> selected.map(_._2.id).getOrElse("empty-editor")
+    ".editor *" #> ("*" #> selected.map(_._2.lines()).getOrElse(Vector.empty).map(TokenRender.render(_))) &
+    ".editor [id]" #> selected.map(_._2.theId()).getOrElse("empty-editor")
   }
 }
 
