@@ -15,46 +15,42 @@ import net.liftweb.util.CssSel
 import scala.util.Random
 
 class RenderedDocument extends CometActor with CometListener {
-  var selected: Option[(FileId, DocumentContent)] = None
+  var selected: Option[FileId] = None
+  var editors: Map[FileId, DocumentContent] = Map()
 
   override protected def registerWith = DocumentEvents
 
   override def lowPriority = {
-    case Selected(id, content) => {
+    case EditorCreated(id, content) => {
       val newContent: DocumentContent = new DocumentContent
-
       newContent.resetTo(DocumentContent.forRendering(content))
-
-      selected = Some((id, newContent))
-      reRender()
+      editors = editors.updated(id, newContent)
     }
+    case EditorClosed(id) => editors = editors.filterKeys(_ != id)
+    case EditorSelected(id) => selected = Some(id); reRender()
     case ClearSelected => selected = None; reRender()
     case dc: DocumentChange => {
-      selected.filter(_._1 == dc.id).foreach {
-        case (id, contents) => {
-          val cmd = contents.apply(dc)
-          partialUpdate(cmd)
-        }
-      }
+      val cmd = editors(dc.id).apply(dc)
+      partialUpdate(cmd)
     }
     case selection: TextSelected => {
       selected.foreach(c => {
-        val cmd = c._2.apply(selection)
+        val cmd = editors(c).apply(selection)
         partialUpdate(cmd)
       })
     }
 
     case TextSelectionCleared => {
       selected.foreach(c => {
-        val cmd = c._2.apply(TextSelectionCleared)
+        val cmd = editors(c).apply(TextSelectionCleared)
         partialUpdate(cmd)
       })
     }
   }
 
   override def render = {
-    ".editor *" #> ("*" #> selected.map(_._2.lines()).getOrElse(Vector.empty).map(TokenRender.render(_))) &
-    ".editor [id]" #> selected.map(_._2.theId()).getOrElse("empty-editor")
+    ".editor *" #> ("*" #> selected.map(editors(_).lines()).getOrElse(Vector.empty).map(TokenRender.render(_))) &
+    ".editor [id]" #> selected.map(editors(_).theId()).getOrElse("empty-editor")
   }
 }
 
@@ -98,7 +94,11 @@ case class File(file: VirtualFile, project: Project)
 
 case class DocumentChange(id: FileId, start: Int, end: Int, lines: Vector[Line]) extends EditorEvent
 
-case class Selected(id: FileId, content: Vector[Line])
+case class EditorCreated(id: FileId, content: Vector[Line])
+
+case class EditorClosed(id: FileId)
+
+case class EditorSelected(id: FileId)
 
 case object ClearSelected
 

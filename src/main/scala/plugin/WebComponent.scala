@@ -123,12 +123,14 @@ object FileEditorEvents extends FileEditorManagerListener with EditorFactoryList
 
     val file = FileDocumentManager.getInstance().getFile(event.getEditor.getDocument)
     EditorSectionEventHandler ! FileOpened(fileId(event.getEditor), File(file, event.getEditor.getProject))
+    DocumentEvents ! EditorCreated(fileId(event.getEditor), DocumentContentLoader.load(File(file, event.getEditor.getProject)))
   }
 
   override def editorReleased(event: EditorFactoryEvent): Unit = {
     event.getEditor.getDocument.removeDocumentListener(event.getEditor.getUserData(DocListener))
 
     EditorSectionEventHandler ! FileClosed(fileId(event.getEditor))
+    DocumentEvents ! EditorClosed(fileId(event.getEditor))
   }
 
   def fileOpened(p1: FileEditorManager, file: VirtualFile) {}
@@ -136,17 +138,10 @@ object FileEditorEvents extends FileEditorManagerListener with EditorFactoryList
   def fileClosed(p1: FileEditorManager, p2: VirtualFile) {}
 
   def selectionChanged(p1: FileEditorManagerEvent) {
-    Option(p1.getNewFile) match {
-      case Some(file) => {
-        val editor = p1.getNewEditor.asInstanceOf[TextEditor].getEditor
-        DocumentEvents ! Selected(fileId(editor), DocumentContentLoader.load(File(file, p1.getManager.getProject)))
-      }
-      case None => DocumentEvents ! ClearSelected
-    }
-
     val maybeFile = Option(p1.getNewEditor).map(_.asInstanceOf[TextEditor].getEditor).map(fileId)
 
     EditorSectionEventHandler ! SelectionChanged(maybeFile)
+    DocumentEvents ! maybeFile.map(EditorSelected(_)).getOrElse(ClearSelected)
   }
 
   def fileId(editor: Editor) = {
