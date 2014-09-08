@@ -1,7 +1,9 @@
 package code.comet
 
+import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.UserDataHolder
 import com.intellij.openapi.vfs.VirtualFile
 import net.liftweb.http.ListenerManager
 import net.liftweb.actor.LiftActor
@@ -43,7 +45,7 @@ case class OpenFile(file: File, selected: Boolean) {
   def name = file.file.getName
 }
 
-case class FileId(underlying: VirtualFile)
+case class FileId(underlying: String)
 
 case class EditorFile(name: String, lines: Vector[Line]) {
   def is(file: EditorFile) = name == file.name

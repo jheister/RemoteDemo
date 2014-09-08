@@ -8,7 +8,7 @@ import com.intellij.openapi.editor.colors.impl.DefaultColorsScheme
 import com.intellij.openapi.editor.event.{DocumentEvent, DocumentListener}
 import com.intellij.openapi.editor.highlighter.{HighlighterClient, HighlighterIterator}
 import com.intellij.openapi.editor.markup.TextAttributes
-import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.fileEditor.{FileEditorManager, FileDocumentManager}
 import com.intellij.openapi.fileTypes.FileTypeEditorHighlighterProviders
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.{Computable, TextRange}
@@ -106,8 +106,8 @@ object DocumentContentLoader {
   }
 }
 
-class NofifyingListener(project: Project, file: VirtualFile, doc: Document) extends DocumentListener {
-  val highlighter = new Highlighter(project, file, doc)
+class NofifyingListener(project: Project, id: FileId, doc: Document) extends DocumentListener {
+  val highlighter = new Highlighter(project, FileDocumentManager.getInstance().getFile(doc), doc)
 
   override def beforeDocumentChange(event: DocumentEvent): Unit = {}
 
@@ -119,7 +119,7 @@ class NofifyingListener(project: Project, file: VirtualFile, doc: Document) exte
     val changedLines: Vector[Line] =
       lines.dropWhile(_.lineNumber < start).takeWhile(_.lineNumber <= newEnd)
 
-    DocumentEvents ! DocumentChange(FileId(file), start, oldEnd, changedLines)
+    DocumentEvents ! DocumentChange(id, start, oldEnd, changedLines)
   }
 
   private def lineChangeOffsets(event: DocumentEvent) = {

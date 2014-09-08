@@ -2,10 +2,13 @@ package plugin
 
 import java.lang.reflect.Field
 import java.util
+import java.util.UUID
 
 import com.intellij.AppTopics
 import com.intellij.openapi.components.ApplicationComponent
-import com.intellij.openapi.editor.{EditorFactory, Document}
+import com.intellij.openapi.editor.ex.{FocusChangeListener, EditorEx}
+import com.intellij.openapi.editor.impl.EditorImpl
+import com.intellij.openapi.editor.{Editor, EditorFactory, Document}
 import com.intellij.openapi.editor.colors.ColorKey
 import com.intellij.openapi.editor.event._
 import com.intellij.openapi.editor.markup.TextAttributes
@@ -30,7 +33,7 @@ import com.intellij.openapi.editor.colors.ex.DefaultColorSchemesManager
 import com.intellij.openapi.editor.ex.util.LexerEditorHighlighter
 import com.intellij.openapi.editor.highlighter.{EditorHighlighter, HighlighterIterator, HighlighterClient}
 
-import com.intellij.openapi.util.TextRange
+import com.intellij.openapi.util.{Key, TextRange}
 
 import scala.collection.immutable.IndexedSeq
 import scala.collection.immutable.Range.Inclusive
@@ -55,6 +58,24 @@ object ServerStarter {
   }
 }
 
+object BroadcastingSelectionChangeListener extends SelectionListener {
+  override def selectionChanged(e: SelectionEvent): Unit = {
+    val doc: Document = e.getEditor.getDocument
+
+    if (e.getNewRange.getLength != 0) {
+      val startLine: Int = doc.getLineNumber(e.getNewRange.getStartOffset)
+      val endLine: Int = doc.getLineNumber(e.getNewRange.getEndOffset)
+
+      val startPos = e.getNewRange.getStartOffset - doc.getLineStartOffset(startLine)
+      val endPos = e.getNewRange.getEndOffset - doc.getLineStartOffset(endLine)
+
+      DocumentEvents ! TextSelected(TextPosition(startLine, startPos), TextPosition(endLine, endPos))
+    } else {
+      DocumentEvents ! TextSelectionCleared
+    }
+  }
+}
+
 class WebComponent extends ApplicationComponent {
   def getComponentName: String = "Web Component"
 
@@ -73,30 +94,7 @@ class WebComponent extends ApplicationComponent {
         def projectOpened(p1: Project) {
           val connection = p1.getMessageBus.connect()
           connection.subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, FileEditorEvents)
-          connection.subscribe(AppTopics.FILE_DOCUMENT_SYNC, new DocumentInstrumentor(p1))
-          EditorFactory.getInstance().addEditorFactoryListener(new EditorFactoryListener {
-            override def editorCreated(event: EditorFactoryEvent): Unit = {
-              event.getEditor.getSelectionModel.addSelectionListener(new SelectionListener {
-                override def selectionChanged(e: SelectionEvent): Unit = {
-                  val doc: Document = e.getEditor.getDocument
-
-                  if (e.getNewRange.getLength != 0) {
-                    val startLine: Int = doc.getLineNumber(e.getNewRange.getStartOffset)
-                    val endLine: Int = doc.getLineNumber(e.getNewRange.getEndOffset)
-
-                    val startPos = e.getNewRange.getStartOffset - doc.getLineStartOffset(startLine)
-                    val endPos = e.getNewRange.getEndOffset - doc.getLineStartOffset(endLine)
-
-                    DocumentEvents ! TextSelected(TextPosition(startLine, startPos), TextPosition(endLine, endPos))
-                  } else {
-                    DocumentEvents ! TextSelectionCleared
-                  }
-                }
-              })
-            }
-
-            override def editorReleased(event: EditorFactoryEvent): Unit = {}
-          }, p1)
+          EditorFactory.getInstance().addEditorFactoryListener(FileEditorEvents, p1)
         }
       })
 
@@ -108,46 +106,50 @@ class WebComponent extends ApplicationComponent {
   def disposeComponent() {}
 }
 
-class DocumentInstrumentor(project: Project) extends FileDocumentManagerListener {
-  override def beforeAllDocumentsSaving(): Unit = {}
+object FileEditorEvents extends FileEditorManagerListener with EditorFactoryListener {
+  val EditorId = Key.create[String]("editor-id")
+  val DocListener = Key.create[DocumentListener]("broadcasting-listener")
 
-  override def fileContentReloaded(file: VirtualFile, document: Document): Unit = {}
+  override def editorCreated(event: EditorFactoryEvent): Unit = {
+    if (event.getEditor.getUserData(EditorId) != null) {
+      println("Editor reuse???")
+    }
+    event.getEditor.putUserData(EditorId, UUID.randomUUID().toString)
+    event.getEditor.getSelectionModel.addSelectionListener(BroadcastingSelectionChangeListener)
+    val listener = new NofifyingListener(event.getEditor.getProject, fileId(event.getEditor), event.getEditor.getDocument)
 
-  override def fileWithNoDocumentChanged(file: VirtualFile): Unit = {}
+    event.getEditor.putUserData(DocListener, listener)
+    event.getEditor.getDocument.addDocumentListener(listener)
 
-  override def beforeDocumentSaving(document: Document): Unit = {}
-
-
-  override def fileContentLoaded(file: VirtualFile, document: Document): Unit = {
-    document.addDocumentListener(new NofifyingListener(project, file, document))
+    val file = FileDocumentManager.getInstance().getFile(event.getEditor.getDocument)
+    EditorSectionEventHandler ! FileOpened(fileId(event.getEditor), File(file, event.getEditor.getProject))
   }
 
-  override def unsavedDocumentsDropped(): Unit = {}
+  override def editorReleased(event: EditorFactoryEvent): Unit = {
+    event.getEditor.getDocument.removeDocumentListener(event.getEditor.getUserData(DocListener))
 
-  override def beforeFileContentReload(file: VirtualFile, document: Document): Unit = {}
-}
-
-
-
-object FileEditorEvents extends FileEditorManagerListener {
-  def fileOpened(p1: FileEditorManager, file: VirtualFile) {
-    EditorSectionEventHandler ! FileOpened(FileId(file), File(file, p1.getProject))
+    EditorSectionEventHandler ! FileClosed(fileId(event.getEditor))
   }
 
-  def fileClosed(p1: FileEditorManager, p2: VirtualFile) {
-    EditorSectionEventHandler ! FileClosed(FileId(p2))
-  }
+  def fileOpened(p1: FileEditorManager, file: VirtualFile) {}
+
+  def fileClosed(p1: FileEditorManager, p2: VirtualFile) {}
 
   def selectionChanged(p1: FileEditorManagerEvent) {
     Option(p1.getNewFile) match {
       case Some(file) => {
-        DocumentEvents ! Selected(FileId(file), DocumentContentLoader.load(File(file, p1.getManager.getProject)))
+        val editor = p1.getNewEditor.asInstanceOf[TextEditor].getEditor
+        DocumentEvents ! Selected(fileId(editor), DocumentContentLoader.load(File(file, p1.getManager.getProject)))
       }
       case None => DocumentEvents ! ClearSelected
     }
 
-    val maybeFile = Option(p1.getNewFile).map(FileId(_))
+    val maybeFile = Option(p1.getNewEditor).map(_.asInstanceOf[TextEditor].getEditor).map(fileId)
 
     EditorSectionEventHandler ! SelectionChanged(maybeFile)
+  }
+
+  def fileId(editor: Editor) = {
+    FileId(editor.getUserData(EditorId))
   }
 }
