@@ -123,7 +123,7 @@ object FileEditorEvents extends FileEditorManagerListener with EditorFactoryList
 
     val file = FileDocumentManager.getInstance().getFile(event.getEditor.getDocument)
     EditorSectionEventHandler ! FileOpened(fileId(event.getEditor), File(file, event.getEditor.getProject))
-    DocumentEvents ! EditorCreated(fileId(event.getEditor), DocumentContentLoader.load(File(file, event.getEditor.getProject)))
+    DocumentEvents ! createdEvent(event.getEditor)
   }
 
   override def editorReleased(event: EditorFactoryEvent): Unit = {
@@ -146,5 +146,10 @@ object FileEditorEvents extends FileEditorManagerListener with EditorFactoryList
 
   def fileId(editor: Editor) = {
     FileId(editor.getUserData(EditorId))
+  }
+
+  def createdEvent(editor: Editor) = {
+    val file = FileDocumentManager.getInstance().getFile(editor.getDocument)
+    EditorCreated(fileId(editor), DocumentContentLoader.load(File(file, editor.getProject)))
   }
 }
